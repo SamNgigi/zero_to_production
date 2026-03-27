@@ -1,59 +1,18 @@
-use actix_web::{App, HttpServer, middleware::Logger, web};
-use dotenv::dotenv;
-use serde::{Deserialize, Serialize};
+use axum::{Router, extract::Path, routing::get};
 
-// Model
-#[derive(Serialize, Deserialize, Debug)]
-struct BlogPost {
-    id: i32,
-    title: String,
-    content: String,
-    author: String,
+async fn greet(name: Option<Path<String>>) -> String {
+    let name = name.map(|Path(n)| n).unwrap_or_else(|| "World".to_string());
+    format!("Hello {name}!")
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct NewBlogPost {
-    title: String,
-    content: String,
-    author: String,
-}
-
-// INFO: Place holder route
-async fn index_page() -> &'static str {
-    "Hello CRUD API!"
-}
-
-async fn create_blogpost() -> &'static str {
-    "Hello CRUD API!"
-}
-
-async fn read_blogpost() -> &'static str {
-    "Hello CRUD API!"
-}
-
-async fn update_blogpost() -> &'static str {
-    "Hello CRUD API!"
-}
-
-async fn delete_blogpost() -> &'static str {
-    "Hello CRUD API!"
-}
-
-async fn get_all_blogpost() -> &'static str {
-    "Hello CRUD API!"
-}
-
-#[actix_web::main]
-async fn main() -> Result<(), std::io::Error> {
-    dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-
-    HttpServer::new(move || {
-        App::new()
-            .wrap(Logger::default())
-            .route("/", web::get().to(index_page))
-    })
-    .bind("127.0.0.1:8001")?
-    .run()
-    .await
+#[tokio::main]
+async fn main() {
+    let app = Router::new()
+        .route("/", get(greet))
+        .route("/{name}", get(greet));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        .await
+        .unwrap();
+    println!("👂 Listening on {}", listener.local_addr().unwrap());
+    axum::serve(listener, app).await.unwrap();
 }
