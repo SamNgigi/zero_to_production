@@ -1,4 +1,4 @@
-use axum::{Router, extract::Path, routing::get};
+use axum::{Router, extract::Path, http::StatusCode, response::IntoResponse, routing::get};
 use tokio::signal;
 
 async fn greet(name: Option<Path<String>>) -> String {
@@ -6,11 +6,16 @@ async fn greet(name: Option<Path<String>>) -> String {
     format!("Hello {name}!")
 }
 
+async fn health_check() -> impl IntoResponse {
+    StatusCode::OK
+}
+
 #[tokio::main]
 async fn main() {
     let app = Router::new()
         .route("/", get(greet))
-        .route("/{name}", get(greet));
+        .route("/{name}", get(greet))
+        .route("/health_check", get(health_check));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
