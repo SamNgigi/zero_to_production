@@ -7,7 +7,17 @@ async fn greet(req: HttpRequest) -> impl Responder {
 }
 
 async fn health_check() -> impl Responder {
-    HttpResponse::Ok()
+    HttpResponse::Ok().finish()
+}
+
+#[derive(serde::Deserialize)]
+struct FormData {
+    _email: String,
+    _username: String,
+}
+
+async fn subscribe(_form: web::Form<FormData>) -> HttpResponse {
+    HttpResponse::Ok().finish()
 }
 
 pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
@@ -16,10 +26,10 @@ pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
             .route("/health_check", web::get().to(health_check))
             .route("/", web::get().to(greet))
             .route("/{name}", web::get().to(greet))
+            .route("/subscriptions", web::post().to(subscribe))
     })
     .listen(listener)?
     .run();
 
-    // No .await, return server
     Ok(server)
 }
