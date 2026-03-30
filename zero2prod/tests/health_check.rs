@@ -1,6 +1,52 @@
 use tokio::net::TcpListener as TokioTcpListener;
 
 #[tokio::test]
+async fn test_subscribe_returns_200_for_valid_form_data() {
+    // Arrange
+    let app_address = spawn_app().await;
+    let client = reqwest::Client::new();
+    // Act
+    let body = "_username=lei%20yin&_email=lei_yin_loo%40gmail.com";
+    let response = client
+        .post(format!("{}/subscriptions", &app_address))
+        .body(body)
+        .send()
+        .await
+        .expect("Failed to execute request");
+    // Assert
+    assert_eq!(200, response.status().as_u16());
+}
+
+#[tokio::test]
+async fn test_subscribe_returns_400_when_data_is_missing() {
+    // Arrange
+    let app_address = spawn_app().await;
+    let client = reqwest::Client::new();
+    let test_cases = vec![
+        ("_username=lei%20yin", "missing the email"),
+        ("_email=lei_yin_loo%40gmail.com", "missing the name"),
+        ("", "missing both username and email"),
+    ];
+    for (invalid_body, err_msg) in test_cases {
+        // Act
+        let response = client
+            .post(format!("{}/subscriptions", &app_address))
+            .body(invalid_body)
+            .send()
+            .await
+            .expect("Failed to execute request");
+        // Assert
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            // Additional customized error message on test failure
+            "The API did not faile with 400 Bad Request when the payload was {}.",
+            err_msg
+        )
+    }
+}
+
+#[tokio::test]
 async fn test_health_check() {
     let address = spawn_app().await;
     let client = reqwest::Client::new();
