@@ -1,4 +1,10 @@
-use axum::{Router, extract::Path, http::StatusCode, response::IntoResponse, routing::get};
+use axum::{
+    Router,
+    extract::Path,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+};
 use tokio::{net::TcpListener as TokioTcpListener, signal};
 
 async fn greet(name: Option<Path<String>>) -> String {
@@ -10,9 +16,14 @@ async fn health_check() -> impl IntoResponse {
     StatusCode::OK
 }
 
+async fn subscribe() -> impl IntoResponse {
+    StatusCode::OK
+}
+
 pub async fn run(listener: TokioTcpListener) -> Result<(), std::io::Error> {
     let app = Router::new()
         .route("/health_check", get(health_check))
+        .route("/subscriptions", post(subscribe))
         .route("/", get(greet))
         .route("/{name}", get(greet));
 
