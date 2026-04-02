@@ -39,10 +39,12 @@ async fn test_subscribe_returns_400_when_data_is_missing() {
             .expect("Failed to execute request");
         // Assert
         assert_eq!(
-            400,
+            // Axum returns HTTP-semantically correct choice
+            // - 422 Unprocessable Entity (I understood the content type but body is invalid)
+            422,
             response.status().as_u16(),
             // Additional customized error message on test failure
-            "The API did not faile with 400 Bad Request when the payload was {}.",
+            "The API did not fail with 400 Bad Request when the payload was {}.",
             err_msg
         )
     }

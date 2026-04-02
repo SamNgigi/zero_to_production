@@ -1,5 +1,5 @@
 use axum::{
-    Router,
+    Form, Router,
     extract::Path,
     http::StatusCode,
     response::IntoResponse,
@@ -16,7 +16,13 @@ async fn health_check() -> impl IntoResponse {
     StatusCode::OK
 }
 
-async fn subscribe() -> impl IntoResponse {
+#[derive(serde::Deserialize)]
+struct FormData {
+    _email: String,
+    _username: String,
+}
+
+async fn subscribe(Form(_form): Form<FormData>) -> impl IntoResponse {
     StatusCode::OK
 }
 
