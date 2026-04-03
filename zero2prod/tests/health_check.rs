@@ -1,5 +1,8 @@
 use std::net::TcpListener;
 
+use sqlx::{Connection, PgConnection};
+
+use zero2prod::config::get_config;
 /*
 * `tokio::test` is the testing equivalent of `tokio::main`.
 * It also spares us from having to specify the `#[test]` attribute.
@@ -29,6 +32,11 @@ async fn test_heath_check() {
 async fn test_subscribe_returns_200_for_valid_form_data() {
     // Arrange
     let app_address = spawn_app().await;
+    let configuration = get_config().expect("Failed to read configuration");
+    let db_connection_string = configuration.db.connection_string();
+    let _db_connection = PgConnection::connect(&db_connection_string)
+        .await
+        .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
 
     // Act

@@ -1,3 +1,6 @@
 # Integration Tests
 itg_test target="*":
   cargo test --test '{{target}}'
+
+gdiff:
+  git diff -- . ':(exclude)Cargo.lock'
