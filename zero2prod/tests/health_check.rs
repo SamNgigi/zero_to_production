@@ -34,13 +34,13 @@ async fn test_subscribe_returns_200_for_valid_form_data() {
     let app_address = spawn_app().await;
     let configuration = get_config().expect("Failed to read configuration");
     let db_connection_string = configuration.db.connection_string();
-    let _db_connection = PgConnection::connect(&db_connection_string)
+    let db_connection = PgConnection::connect(&db_connection_string)
         .await
         .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
 
     // Act
-    let body = "_username=lei%20yin&_email=lei_yin_loo%40gmail.com";
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
     let response = client
         .post(format!("{}/subscriptions", &app_address))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -51,6 +51,14 @@ async fn test_subscribe_returns_200_for_valid_form_data() {
 
     // Assert
     assert_eq!(200, response.status().as_u16());
+
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+        .fetch_one(&mut db_connection)
+        .await
+        .expect("Failed to fetch saved subscription.");
+
+    assert_eq!(saved.email, "lei_yin_loo@gmail.com");
+    assert_eq!(saved.username, "lei yin");
 }
 
 #[tokio::test]
@@ -59,8 +67,8 @@ async fn test_subscribe_returns_400_when_data_is_missing() {
     let app_address = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
-        ("_username=lei%20yin", "missing the email"),
-        ("_email=lei_yin_low%40gmail.com", "missing the name"),
+        ("username=lei%20yin", "missing the email"),
+        ("email=lei_yin_low%40gmail.com", "missing the name"),
         ("", "missing both name and email"),
     ];
 
