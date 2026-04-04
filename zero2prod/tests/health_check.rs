@@ -1,4 +1,5 @@
 use tokio::net::TcpListener as TokioTcpListener;
+use zero2prod::startup as z2p;
 
 #[tokio::test]
 async fn test_subscribe_returns_200_for_valid_form_data() {
@@ -73,9 +74,7 @@ async fn spawn_app() -> String {
     // Retrieving the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move {
-        zero2prod::run(listener)
-            .await
-            .expect("Failed to run app in test");
+        z2p::run(listener).await.expect("Failed to run app in test");
     });
 
     format!("http://127.0.0.1:{}", port)

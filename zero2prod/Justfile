@@ -1,2 +1,2 @@
-itg_test target="*":
+itg-test target="*":
   cargo test --test '{{target}}'
