@@ -1,2 +1,5 @@
 itg-test target="*":
   cargo test --test '{{target}}'
+
+gdiff:
+  git diff -- . ':(exclude)Cargo.lock'

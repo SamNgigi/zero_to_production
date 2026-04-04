@@ -1,0 +1,8 @@
+app_port: 8000
+db:
+  username: "postgres"
+  password: "password"
+  port: 5432
+  host: "127.0.0.1"
+  db_name: "newsletter"
+  max_connections: 10

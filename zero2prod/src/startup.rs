@@ -4,14 +4,19 @@ use axum::{
     Router,
     routing::{get, post},
 };
+use sqlx::PgPool;
 use tokio::{net::TcpListener as TokioTcpListener, signal};
 
-pub async fn run(listener: TokioTcpListener) -> Result<(), std::io::Error> {
+pub async fn run(
+    listener: TokioTcpListener,
+    db_pool: PgPool, // New param
+) -> Result<(), std::io::Error> {
     let app = Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
         .route("/", get(greet))
-        .route("/{name}", get(greet));
+        .route("/{name}", get(greet))
+        .with_state(db_pool);
 
     println!("👂 Listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app)

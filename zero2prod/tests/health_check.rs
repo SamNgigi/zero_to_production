@@ -1,15 +1,16 @@
+use sqlx::PgPool;
 use tokio::net::TcpListener as TokioTcpListener;
-use zero2prod::startup as z2p;
+use zero2prod::{config::get_config, startup as z2p};
 
 #[tokio::test]
 async fn test_subscribe_returns_200_for_valid_form_data() {
     // Arrange
-    let app_address = spawn_app().await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
     // Act
     let body = "_username=lei%20yin&_email=lei_yin_loo%40gmail.com";
     let response = client
-        .post(format!("{}/subscriptions", &app_address))
+        .post(format!("{}/subscriptions", &app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -22,7 +23,7 @@ async fn test_subscribe_returns_200_for_valid_form_data() {
 #[tokio::test]
 async fn test_subscribe_returns_400_when_data_is_missing() {
     // Arrange
-    let app_address = spawn_app().await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("_username=lei%20yin", "missing the email"),
@@ -32,7 +33,7 @@ async fn test_subscribe_returns_400_when_data_is_missing() {
     for (invalid_body, err_msg) in test_cases {
         // Act
         let response = client
-            .post(format!("{}/subscriptions", &app_address))
+            .post(format!("{}/subscriptions", &app.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
@@ -53,11 +54,11 @@ async fn test_subscribe_returns_400_when_data_is_missing() {
 
 #[tokio::test]
 async fn test_health_check() {
-    let address = spawn_app().await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let response = client
-        .get(format!("{}/health_check", &address))
+        .get(format!("{}/health_check", &app.address))
         .send()
         .await
         .expect("Failed to execute requests.");
@@ -66,16 +67,34 @@ async fn test_health_check() {
     assert_eq!(Some(0), response.content_length());
 }
 
-async fn spawn_app() -> String {
+#[derive(Debug)]
+pub struct TestApp {
+    pub address: String,
+    pub db_pool: PgPool,
+}
+
+async fn spawn_app() -> TestApp {
     let listener = TokioTcpListener::bind("127.0.0.1:0")
         .await
         .expect("Failed to bind to random port");
 
     // Retrieving the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
+    let address = format!("http://127.0.0.1:{}", port);
+
+    let configuration = get_config().expect("Failed to read configuration");
+    let connection_pool = PgPool::connect(&configuration.db.connection_string())
+        .await
+        .expect("Failed to connect to Postgres.");
+    let db_pool = connection_pool.clone();
     tokio::spawn(async move {
-        z2p::run(listener).await.expect("Failed to run app in test");
+        z2p::run(listener, db_pool)
+            .await
+            .expect("Failed to run app in test");
     });
 
-    format!("http://127.0.0.1:{}", port)
+    TestApp {
+        address,
+        db_pool: connection_pool,
+    }
 }
