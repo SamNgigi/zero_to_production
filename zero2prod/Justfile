@@ -4,6 +4,6 @@ itg-test target="*":
 gdiff:
   git diff -- . ':(exclude)Cargo.lock'
 
-dbshell db_container_name db_name:
+dbshell db_container_name="newsletter_postgres_1775475532" db_name="newsletter":
   docker exec -it {{db_container_name}} psql -U postgres -d {{db_name}}
 

@@ -1,6 +1,10 @@
-use sqlx::PgPool;
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use tokio::net::TcpListener as TokioTcpListener;
-use zero2prod::{config::get_config, startup as z2p};
+use uuid::Uuid;
+use zero2prod::{
+    config::{DBSettings, get_config},
+    startup as z2p,
+};
 
 #[tokio::test]
 async fn test_subscribe_returns_200_for_valid_form_data() {
@@ -8,7 +12,7 @@ async fn test_subscribe_returns_200_for_valid_form_data() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
     // Act
-    let body = "_username=lei%20yin&_email=lei_yin_loo%40gmail.com";
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
     let response = client
         .post(format!("{}/subscriptions", &app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -18,6 +22,14 @@ async fn test_subscribe_returns_200_for_valid_form_data() {
         .expect("Failed to execute request");
     // Assert
     assert_eq!(200, response.status().as_u16());
+
+    let saved = sqlx::query!("SELECT email, username FROM subscriptions",)
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("Failed to fetch saved request.");
+
+    assert_eq!(saved.email, "lei_yin_loo@gmail.com");
+    assert_eq!(saved.username, "lei yin");
 }
 
 #[tokio::test]
@@ -26,8 +38,8 @@ async fn test_subscribe_returns_400_when_data_is_missing() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
-        ("_username=lei%20yin", "missing the email"),
-        ("_email=lei_yin_loo%40gmail.com", "missing the name"),
+        ("username=lei%20yin", "missing the email"),
+        ("email=lei_yin_loo%40gmail.com", "missing the name"),
         ("", "missing both username and email"),
     ];
     for (invalid_body, err_msg) in test_cases {
@@ -82,10 +94,10 @@ async fn spawn_app() -> TestApp {
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
 
-    let configuration = get_config().expect("Failed to read configuration");
-    let connection_pool = PgPool::connect(&configuration.db.connection_string())
-        .await
-        .expect("Failed to connect to Postgres.");
+    let mut configuration = get_config().expect("Failed to read configuration");
+    configuration.db.db_name = format!("newsletter_test_db_{}", Uuid::now_v7());
+
+    let connection_pool = configure_db(&configuration.db).await;
     let db_pool = connection_pool.clone();
     tokio::spawn(async move {
         z2p::run(listener, db_pool)
@@ -97,4 +109,27 @@ async fn spawn_app() -> TestApp {
         address,
         db_pool: connection_pool,
     }
+}
+
+pub async fn configure_db(config: &DBSettings) -> PgPool {
+    // Create the DB
+    let mut connection = PgConnection::connect(&config.connection_string_without_db_name())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    connection
+        .execute(format!(r#"CREATE DATABASE "{}";"#, config.db_name).as_str())
+        .await
+        .expect("Failed to create database");
+
+    let connection_pool = PgPool::connect(&config.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("Failed to migrate the database");
+
+    connection_pool
 }
