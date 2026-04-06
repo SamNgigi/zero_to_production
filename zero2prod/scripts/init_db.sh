@@ -10,7 +10,7 @@ if ! [ -x "$(command -v psql)" ]; then
 fi
 
 # Check sqlx-cli is installed
-if ! [ -x "$(command -v psql)" ]; then
+if ! [ -x "$(command -v sqlx)" ]; then
   echo >&2 "Error: sqlx is not installed."
   echo >&2 "Use:"
   echo >&2 "  cargo install sqlx-cli --no-default-features -F rustls,postgres"
@@ -29,3 +29,40 @@ DB_PORT="${POSTGRES_PORT:=5432}"
 # Check if a custom host has been set, otherwise default to 'localhost'
 DB_HOST="${POSTGRES_HOST:=localhost}"
 
+# Allow to skip Docker if a Dockerized Postgres database is already running
+if [[ -z "${SKIP_DOCKER}" ]]
+then
+  # If a Postgres container is running, print instructions to kill it and exit
+  RUNNING_POSTGRES_CONTAINER=$(docker ps --filter 'name=postgres' --format '{{.ID}}')
+  if [[ -n $RUNNING_POSTGRES_CONTAINER ]]; then
+    echo >&2 "There is a Postgres container already running; kill it with:"
+    echo >&2 "  docker kill ${RUNNING_POSTGRES_CONTAINER}"
+    exit 1
+  fi
+
+  # Lauch postgres using Docker
+  docker run \
+    -e POSTGRES_USER=${DB_USER} \
+    -e POSTGRES_PASSWORD=${DB_PASSWORD} \
+    -e POSTGRES_DB=${DB_NAME} \
+    -p "${DB_PORT}":5432 \
+    -d \
+    --name "${DB_NAME}_postgres_$(date '+%s')" \
+    postgres -N 1000
+  # ^ Increased maxium number of connections for testing purposes
+fi
+
+# Keep pinging Postgres until it's ready to accept commands
+until PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -U "${DB_USER}" -p "${DB_PORT}" -d "postgres" -c '\q'; do
+  >&2 echo "Postgres is still unavailable - sleeping..."
+  sleep 1
+done
+
+>&2 echo "Postgres is up and running on port ${DB_PORT} - running migrations now.."
+
+DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+export DATABASE_URL
+sqlx database create
+sqlx migrate run
+
+>&2 echo "Postgres has been migrated, ready to go!"
