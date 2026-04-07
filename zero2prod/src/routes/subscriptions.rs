@@ -4,6 +4,8 @@ use sqlx::PgPool;
 use chrono::Utc;
 use uuid::Uuid;
 
+use tracing::Instrument;
+
 #[derive(serde::Deserialize)]
 pub struct FormData {
     email: String,
@@ -28,16 +30,11 @@ pub async fn subscribe(
     // Bear with it now, but don't do this at home.
     // See the following section on `Instrumenting Futures`
     let _request_span_guard = request_span.enter();
-    tracing::info!(
-        "request_id {} - Adding '{}' '{}' as a new subscriber.",
-        request_id,
-        form.email,
-        form.username
-    );
-    tracing::info!(
-        "request_id {} - Saving new subscriber details in the database.",
-        request_id
-    );
+
+    // INFO: We do not call `.enter` on the query_span!
+    // `.instrument` takes care of it at the right moments
+    // in the query lifetime
+    let query_span = tracing::info_span!("Saving new subscriber details in the database.");
     match sqlx::query!(
         r#"
             INSERT INTO subscriptions (id, email, username, subscribed_at)
@@ -49,6 +46,8 @@ pub async fn subscribe(
         Utc::now(),
     )
     .execute(pool.as_ref())
+    // INFO: First we attach the implementation, then we `.await` it
+    .instrument(query_span)
     .await
     {
         Ok(_) => {
@@ -65,5 +64,5 @@ pub async fn subscribe(
         }
     }
     // INFO:`_request_span_guard` is dropped at the end of `subscribe`
-    // That's when we `exit` the span
+    // That's when we `exit`
 }
