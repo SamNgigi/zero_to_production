@@ -3,6 +3,8 @@ use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
 };
 
+use secrecy::{ExposeSecret, SecretString};
+
 #[derive(Debug, serde::Deserialize)]
 pub struct AppSettings {
     pub db: DBSettings,
@@ -12,7 +14,7 @@ pub struct AppSettings {
 #[derive(Debug, serde::Deserialize)]
 pub struct DBSettings {
     pub username: String,
-    pub password: String,
+    pub password: SecretString,
     pub port: u16,
     pub host: String,
     pub db_name: String,
@@ -20,17 +22,30 @@ pub struct DBSettings {
 }
 
 impl DBSettings {
-    pub fn connection_string(&self) -> String {
-        format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.username, self.password, self.host, self.port, self.db_name
+    pub fn connection_string(&self) -> SecretString {
+        SecretString::new(
+            format!(
+                "postgres://{}:{}@{}:{}/{}",
+                self.username,
+                self.password.expose_secret(),
+                self.host,
+                self.port,
+                self.db_name
+            )
+            .into(),
         )
     }
 
-    pub fn connection_string_without_db_name(&self) -> String {
-        format!(
-            "postgres://{}:{}@{}:{}",
-            self.username, self.password, self.host, self.port
+    pub fn connection_string_without_db_name(&self) -> SecretString {
+        SecretString::new(
+            format!(
+                "postgres://{}:{}@{}:{}",
+                self.username,
+                self.password.expose_secret(),
+                self.host,
+                self.port
+            )
+            .into(),
         )
     }
 }
@@ -48,7 +63,7 @@ pub fn get_config() -> Result<AppSettings, config::ConfigError> {
 pub async fn create_pool(cfg: &DBSettings) -> Result<PgPool, sqlx::Error> {
     let options = PgConnectOptions::new()
         .username(&cfg.username)
-        .password(&cfg.password)
+        .password(cfg.password.expose_secret())
         .port(cfg.port)
         .host(&cfg.host)
         .database(&cfg.db_name);
