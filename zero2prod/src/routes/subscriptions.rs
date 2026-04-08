@@ -4,8 +4,6 @@ use sqlx::PgPool;
 use chrono::Utc;
 use uuid::Uuid;
 
-use tracing::Instrument;
-
 #[derive(serde::Deserialize)]
 pub struct FormData {
     email: String,
@@ -19,7 +17,7 @@ pub struct FormData {
     name="Adding a new subscriber"
     skip(form, pool),
     fields(
-        request_id = %Uuid::now_v7(),
+        // request_id = %Uuid::now_v7(),
         subscriber_email=%form.email,
         subscriber_username=%form.username,
     )
@@ -28,36 +26,9 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>, // Retrieving a connection from App State
 ) -> HttpResponse {
-    let request_id = Uuid::now_v7();
-
-    let query_span = tracing::info_span!("Saving new subscriber details in the database.");
-    match sqlx::query!(
-        r#"
-            INSERT INTO subscriptions (id, email, username, subscribed_at)
-            VALUES ($1, $2, $3, $4)
-        "#,
-        Uuid::now_v7(),
-        form.email,
-        form.username,
-        Utc::now(),
-    )
-    .execute(pool.as_ref())
-    // INFO: First we attach the implementation, then we `.await` it
-    .instrument(query_span)
-    .await
-    {
-        Ok(_) => {
-            tracing::info!("request_id {} - New subscriber has been saved.", request_id);
-            HttpResponse::Ok().finish()
-        }
-        Err(e) => {
-            tracing::error!(
-                "request_id {} - Failed to execute query: {:?}",
-                request_id,
-                e
-            );
-            HttpResponse::InternalServerError().finish()
-        }
+    match insert_subscriber(&pool, &form).await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(_) => HttpResponse::InternalServerError().finish(),
     }
 }
 
