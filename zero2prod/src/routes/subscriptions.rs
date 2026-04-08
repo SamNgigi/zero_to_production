@@ -15,10 +15,9 @@ pub struct FormData {
  * according to the rules and conventions of the HTTP protocol
  * */
 #[tracing::instrument(
-    name = "Adding a new subscriber"
+    name = "Adding a new subscriber",
     skip(db_pool, form),
     fields(
-        request_id = %Uuid::now_v7(),
         subscriber_email = %form.email,
         subscriber_username = %form.username
     )
@@ -39,7 +38,7 @@ pub async fn subscribe(
  * */
 
 #[tracing::instrument(
-    name = "Saving new subscriber details in the database"
+    name = "Saving new subscriber details in the database",
     skip(pool, form)
 )]
 async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {

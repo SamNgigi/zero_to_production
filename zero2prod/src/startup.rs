@@ -1,11 +1,13 @@
 use crate::routes::{greet, health_check, subscribe};
 
 use axum::{
-    Router,
+    Router, http,
     routing::{get, post},
 };
 use sqlx::PgPool;
 use tokio::{net::TcpListener as TokioTcpListener, signal};
+use tower_http::trace::TraceLayer;
+use uuid::Uuid;
 
 pub async fn run(
     listener: TokioTcpListener,
@@ -16,6 +18,17 @@ pub async fn run(
         .route("/subscriptions", post(subscribe))
         .route("/", get(greet))
         .route("/{name}", get(greet))
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &http::Request<_>| {
+                let request_id = Uuid::now_v7();
+                tracing::info_span!(
+                    "http_request",
+                    method = %request.method(),
+                    uri = %request.uri(),
+                    request_id = %request_id
+                )
+            }),
+        )
         .with_state(db_pool);
 
     println!("👂 Listening on {}", listener.local_addr().unwrap());
