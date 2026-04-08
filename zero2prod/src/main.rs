@@ -8,7 +8,10 @@ use zero2prod::{
 #[tokio::main]
 async fn main() {
     // INFO: Telemetry setup
-    let subscriber = telemetry::get_tracing_subscriber("info".into());
+    let subscriber = telemetry::get_tracing_subscriber(
+        "info".into(),
+        std::io::stdout, // sink when app is running
+    );
     telemetry::init_tracing_subscriber(subscriber);
 
     // INFO: App configuration

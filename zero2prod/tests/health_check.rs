@@ -3,7 +3,7 @@ use tokio::net::TcpListener as TokioTcpListener;
 use uuid::Uuid;
 use zero2prod::{
     config::{DBSettings, get_config},
-    startup as z2p,
+    startup as z2p, telemetry,
 };
 
 #[tokio::test]
@@ -79,6 +79,27 @@ async fn test_health_check() {
     assert_eq!(Some(0), response.content_length());
 }
 
+use once_cell::sync::Lazy;
+
+// INFO: Ensuring that the `tracing` stack is only initialized once using `once_cell`
+static TRACING: Lazy<()> = Lazy::new(|| {
+    /*
+     * INFO:
+     * We cannot assign the output of `get_subscriber` to a variable based on the
+     * value `TEST_LOG` because the sink is part of the type returned by
+     * `get_subscriber`, therefore they are not the same type. We could work around
+     * it, but below is the most straight-forward way of moving forward
+     */
+    let default_filter_level = "info".to_string();
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = telemetry::get_tracing_subscriber(default_filter_level, std::io::stdout);
+        telemetry::init_tracing_subscriber(subscriber);
+    } else {
+        let subscriber = telemetry::get_tracing_subscriber(default_filter_level, std::io::sink);
+        telemetry::init_tracing_subscriber(subscriber);
+    }
+});
+
 #[derive(Debug)]
 pub struct TestApp {
     pub address: String,
@@ -86,6 +107,10 @@ pub struct TestApp {
 }
 
 async fn spawn_app() -> TestApp {
+    // INFO: Telemetry Test setup
+    Lazy::force(&TRACING);
+
+    // INFO: App Confguration
     let listener = TokioTcpListener::bind("127.0.0.1:0")
         .await
         .expect("Failed to bind to random port");
@@ -99,6 +124,8 @@ async fn spawn_app() -> TestApp {
 
     let connection_pool = configure_db(&configuration.db).await;
     let db_pool = connection_pool.clone();
+
+    // INFO: Run app as async block/future in test context
     tokio::spawn(async move {
         z2p::run(listener, db_pool)
             .await
