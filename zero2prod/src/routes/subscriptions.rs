@@ -12,28 +12,24 @@ pub struct FormData {
     username: String,
 }
 
+// INFO: `subscribe` orchestrates the work to be done by calling the
+// required routines and translates their outcome into the proper response
+// according to the rules and conventions of the HTTP protocol
+#[tracing::instrument(
+    name="Adding a new subscriber"
+    skip(form, pool),
+    fields(
+        request_id = %Uuid::now_v7(),
+        subscriber_email=%form.email,
+        subscriber_username=%form.username,
+    )
+)]
 pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>, // Retrieving a connection from App State
 ) -> HttpResponse {
     let request_id = Uuid::now_v7();
-    // INFO: Spans, like logs, have an associated level
-    // `info_span` creates a span at the info-level
-    let request_span = tracing::info_span!(
-        "Adding a new subscriber.",
-        %request_id,
-        subscriber_email = %form.email,
-        subscriber_username = %form.username
-    );
 
-    // FIX: Using `enter` in an async function is a recipe for disaster!
-    // Bear with it now, but don't do this at home.
-    // See the following section on `Instrumenting Futures`
-    let _request_span_guard = request_span.enter();
-
-    // INFO: We do not call `.enter` on the query_span!
-    // `.instrument` takes care of it at the right moments
-    // in the query lifetime
     let query_span = tracing::info_span!("Saving new subscriber details in the database.");
     match sqlx::query!(
         r#"
@@ -63,6 +59,33 @@ pub async fn subscribe(
             HttpResponse::InternalServerError().finish()
         }
     }
-    // INFO:`_request_span_guard` is dropped at the end of `subscribe`
-    // That's when we `exit`
+}
+
+// INFO: `insert_subscriber` takes care of the database logic and it has no awareness of
+// the surrounding web framework. Easily portable.
+#[tracing::instrument(
+    name = "Saving new subscriber details in the database",
+    skip(form, pool)
+)]
+pub async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+            INSERT INTO subscriptions (id, email, username, subscribed_at)
+            VALUES ($1, $2, $3, $4)
+        "#,
+        Uuid::now_v7(),
+        form.email,
+        form.username,
+        Utc::now(),
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        e
+        // INFO: Using the `?` operator to return early
+        // if the function failed, returning a sqlx::Error
+        // We will talk about error handling in depth later.
+    })?;
+    Ok(())
 }
