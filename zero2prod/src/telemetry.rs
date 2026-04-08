@@ -1,6 +1,6 @@
 use tracing::subscriber::{Subscriber, set_global_default};
 use tracing_log::LogTracer;
-use tracing_subscriber::{EnvFilter, Registry, fmt, layer::SubscriberExt};
+use tracing_subscriber::{EnvFilter, Registry, fmt, fmt::MakeWriter, layer::SubscriberExt};
 
 /// Compose multiple layers into a `tracing`'s subscriber
 ///
@@ -12,10 +12,21 @@ use tracing_subscriber::{EnvFilter, Registry, fmt, layer::SubscriberExt};
 /// We nee to explicitly call out that the returned subscriver is
 /// `Send` and `Sync` to make it possible to pass it to `init_subscriber`
 /// later on.
-pub fn get_subscriber(env_filter: String) -> impl Subscriber + Send + Sync {
+pub fn get_subscriber<Sink>(env_filter: String, sink: Sink) -> impl Subscriber + Send + Sync
+where
+    // INFO: This "weird" syntax is a higher-ranked trait bound (HRTB)
+    // It basically means that Sink implements the `MakeWriter`
+    // trait for all choices of the lifetime parameter `'a`
+    // Check out https://doc.rust-lang.org/nomicon/hrtb.html
+    // for more details
+    Sink: for<'a> MakeWriter<'a> + Send + Sync + 'static,
+{
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
-    let formatting_layer = fmt::layer().json().with_current_span(true);
+    let formatting_layer = fmt::layer()
+        .json()
+        .with_writer(sink)
+        .with_current_span(true);
 
     Registry::default().with(env_filter).with(formatting_layer)
 }

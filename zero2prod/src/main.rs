@@ -10,7 +10,7 @@ use zero2prod::{
 #[actix_web::main]
 async fn main() -> Result<(), std::io::Error> {
     // INFO: Telemetry setup
-    let subscriber = telemetry::get_subscriber("info".into());
+    let subscriber = telemetry::get_subscriber("info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
     // INFO: App configuration
