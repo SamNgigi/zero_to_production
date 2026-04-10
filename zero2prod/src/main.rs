@@ -21,7 +21,7 @@ async fn main() {
         .acquire()
         .await
         .expect("Failed to connect to Postgres.");
-    let address = format!("127.0.0.1:{}", config.app_port);
+    let address = format!("127.0.0.1:{}", config.app.port);
     let listener = TokioTcpListener::bind(address)
         .await
         .expect("Failed to bind to port");

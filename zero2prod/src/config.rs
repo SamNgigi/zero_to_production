@@ -5,10 +5,70 @@ use sqlx::{
 
 use secrecy::{ExposeSecret, SecretString};
 
+pub enum Environment {
+    DEVELOPMENT,
+    PRODUCTION,
+}
+
+impl Environment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Environment::DEVELOPMENT => "development",
+            Environment::PRODUCTION => "production",
+        }
+    }
+}
+
+impl TryFrom<String> for Environment {
+    type Error = String;
+
+    fn try_from(val: String) -> Result<Self, Self::Error> {
+        match val.to_lowercase().as_str() {
+            "development" => Ok(Self::DEVELOPMENT),
+            "production" => Ok(Self::PRODUCTION),
+            other => Err(format!(
+                "{} is not a supported environment. \
+                    Use either `development` or `production`.",
+                other
+            )),
+        }
+    }
+}
+
+pub fn get_config() -> Result<Settings, config::ConfigError> {
+    let base_path = std::env::current_dir().expect("Failed to determine the current directory");
+    let configuration_directory = base_path.join("configuration");
+
+    // Detect the running environment.
+    // Default to `local` if unspecified.
+    let environment: Environment = std::env::var("APP_ENVIRONMENT")
+        .unwrap_or_else(|_| "development".into())
+        .try_into()
+        .expect("Failed to parse APP_ENVIRONMENT");
+    let environment_filename = format!("{}.yaml", environment.as_str());
+
+    let settings = config::Config::builder()
+        .add_source(config::File::from(
+            configuration_directory.join("base.yaml"),
+        ))
+        .add_source(config::File::from(
+            configuration_directory.join(environment_filename),
+        ))
+        .build()?;
+    // Try to convert the read config values into our Setting type
+    settings.try_deserialize::<Settings>()
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct Settings {
+    pub db: DBSettings,
+    pub app: AppSettings,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct AppSettings {
-    pub db: DBSettings,
-    pub app_port: u16,
+    pub port: u16,
+    pub host: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -48,16 +108,6 @@ impl DBSettings {
             .into(),
         )
     }
-}
-
-pub fn get_config() -> Result<AppSettings, config::ConfigError> {
-    // Initializing our config reader
-    let settings = config::Config::builder()
-        // Add config values from a file named 'config.yaml'
-        .add_source(config::File::new("config.yaml", config::FileFormat::Yaml))
-        .build()?;
-    // Try to convert the read config values into our Setting type
-    settings.try_deserialize::<AppSettings>()
 }
 
 pub fn create_pool(cfg: &DBSettings) -> PgPool {
