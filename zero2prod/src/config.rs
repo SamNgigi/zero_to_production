@@ -60,7 +60,7 @@ pub fn get_config() -> Result<AppSettings, config::ConfigError> {
     settings.try_deserialize::<AppSettings>()
 }
 
-pub async fn create_pool(cfg: &DBSettings) -> Result<PgPool, sqlx::Error> {
+pub fn create_pool(cfg: &DBSettings) -> PgPool {
     let options = PgConnectOptions::new()
         .username(&cfg.username)
         .password(cfg.password.expose_secret())
@@ -70,6 +70,5 @@ pub async fn create_pool(cfg: &DBSettings) -> Result<PgPool, sqlx::Error> {
 
     PgPoolOptions::new()
         .max_connections(cfg.max_connections)
-        .connect_with(options)
-        .await
+        .connect_lazy_with(options)
 }

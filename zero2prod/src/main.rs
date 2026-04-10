@@ -16,9 +16,11 @@ async fn main() {
 
     // INFO: App configuration
     let config = get_config().expect("Failed to read configuration");
-    let connection_pool = create_pool(&config.db)
+    let connection_pool = create_pool(&config.db);
+    connection_pool
+        .acquire()
         .await
-        .expect("Failed to connect to Postgres");
+        .expect("Failed to connect to Postgres.");
     let address = format!("127.0.0.1:{}", config.app_port);
     let listener = TokioTcpListener::bind(address)
         .await
