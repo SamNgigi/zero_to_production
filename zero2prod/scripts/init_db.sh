@@ -47,7 +47,7 @@ then
     -e POSTGRES_DB=${DB_NAME} \
     -p "${DB_PORT}":5432 \
     -d \
-    --name "${DB_NAME}_postgres_$(date '+%s')" \
+    --name "${DB_NAME}_axum_postgres" \
     postgres -N 1000
   # ^ Increased maxium number of connections for testing purposes
 fi
@@ -62,6 +62,7 @@ done
 
 DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 export DATABASE_URL
+sqlx database drop
 sqlx database create
 sqlx migrate run
 
