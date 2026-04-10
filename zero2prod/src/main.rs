@@ -16,12 +16,12 @@ async fn main() -> Result<(), std::io::Error> {
 
     // INFO: App configuration
     let config = get_config().expect("Failed to read configuration");
-    let connection_pool = PgPool::connect(config.db.connection_string().expose_secret())
-        .await
+    // No longer async, given that we don't actually try to connect. We use connect_lazy instead
+    let connection_pool = PgPool::connect_lazy(config.db.connection_string().expose_secret())
         .expect("Failed to connect to Postgres.");
-    let address = format!("127.0.0.1:{}", config.app_port);
+    let address = format!("{}:{}", config.app.host, config.app.port);
     let listener = TcpListener::bind(address)
-        .unwrap_or_else(|_| panic!("Failed to bind to port: {}", config.app_port));
+        .unwrap_or_else(|_| panic!("Failed to bind to port: {}", config.app.port));
 
     // INFO: Run App
     run(listener, connection_pool)?.await

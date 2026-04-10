@@ -20,6 +20,7 @@ use zero2prod::{
 #[tokio::test]
 async fn test_heath_check() {
     // Arrange
+    let s = Uuid::now_v7();
     let app = spawn_app().await;
     // Perfoming HTTP requests against our application using reqwest
     let client = reqwest::Client::new();
