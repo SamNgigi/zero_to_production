@@ -25,8 +25,8 @@ where
     // for more details
     Sink: for<'a> MakeWriter<'a> + Sync + Send + 'static,
 {
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(format!("{},tower_http::trace=debug", env_filter)));
     let formatting_layer = fmt::layer()
         .json()
         .with_writer(sink)
