@@ -1,5 +1,5 @@
 app:
-  port: 8000
+  port: 8080
 db:
   username: "postgres"
   password: "password"
@@ -7,3 +7,4 @@ db:
   host: "127.0.0.1"
   db_name: "newsletter"
   max_connections: 10
+  require_ssl: false

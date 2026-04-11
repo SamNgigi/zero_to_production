@@ -1,4 +1,5 @@
 .env
+.env.*
 .dockerignore
 target/
 deploy/

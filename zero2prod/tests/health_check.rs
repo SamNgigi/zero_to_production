@@ -1,4 +1,4 @@
-use secrecy::ExposeSecret;
+use secrecy::SecretString;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use tokio::net::TcpListener as TokioTcpListener;
 use uuid::Uuid;
@@ -141,17 +141,23 @@ async fn spawn_app() -> TestApp {
 
 pub async fn configure_db(config: &DBSettings) -> PgPool {
     // Create the DB
-    let mut connection =
-        PgConnection::connect(config.connection_string_without_db_name().expose_secret())
-            .await
-            .expect("Failed to connect to Postgres");
+    let maintenance_settings = DBSettings {
+        db_name: "postgres".to_string(),
+        username: "postgres".to_string(),
+        password: SecretString::new("password".into()),
+        ..config.clone()
+    };
+
+    let mut connection = PgConnection::connect_with(&maintenance_settings.connect_options())
+        .await
+        .expect("Failed to connect to Postgres");
 
     connection
         .execute(format!(r#"CREATE DATABASE "{}";"#, config.db_name).as_str())
         .await
         .expect("Failed to create database");
 
-    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
+    let connection_pool = PgPool::connect_with(config.connect_options())
         .await
         .expect("Failed to connect to Postgres");
 

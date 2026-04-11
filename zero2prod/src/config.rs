@@ -1,9 +1,10 @@
 use sqlx::{
     PgPool,
-    postgres::{PgConnectOptions, PgPoolOptions},
+    postgres::{PgConnectOptions, PgPoolOptions, PgSslMode},
 };
 
 use secrecy::{ExposeSecret, SecretString};
+use serde_with::{DisplayFromStr, serde_as};
 
 pub enum Environment {
     DEVELOPMENT,
@@ -54,6 +55,13 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
         .add_source(config::File::from(
             configuration_directory.join(environment_filename),
         ))
+        // Add in settings from environment variables (with a prefix of APP and '__' as seperator)
+        // E.g. `APP_APPLICATION_PORT=5001` would set `Settings.application.port`
+        .add_source(
+            config::Environment::with_prefix("APP")
+                .prefix_separator("_")
+                .separator("__"),
+        )
         .build()?;
     // Try to convert the read config values into our Setting type
     settings.try_deserialize::<Settings>()
@@ -65,58 +73,48 @@ pub struct Settings {
     pub app: AppSettings,
 }
 
+#[serde_as]
 #[derive(Debug, serde::Deserialize)]
 pub struct AppSettings {
+    #[serde_as(as = "DisplayFromStr")]
     pub port: u16,
     pub host: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[serde_as]
+#[derive(Debug, serde::Deserialize, Clone)]
 pub struct DBSettings {
     pub username: String,
     pub password: SecretString,
+    #[serde_as(as = "DisplayFromStr")]
     pub port: u16,
     pub host: String,
     pub db_name: String,
     pub max_connections: u32,
+    // Determine if we demand the connection to be encrypted or not
+    pub require_ssl: bool,
 }
 
 impl DBSettings {
-    pub fn connection_string(&self) -> SecretString {
-        SecretString::new(
-            format!(
-                "postgres://{}:{}@{}:{}/{}",
-                self.username,
-                self.password.expose_secret(),
-                self.host,
-                self.port,
-                self.db_name
-            )
-            .into(),
-        )
-    }
+    pub fn connect_options(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            PgSslMode::Prefer
+        };
 
-    pub fn connection_string_without_db_name(&self) -> SecretString {
-        SecretString::new(
-            format!(
-                "postgres://{}:{}@{}:{}",
-                self.username,
-                self.password.expose_secret(),
-                self.host,
-                self.port
-            )
-            .into(),
-        )
+        PgConnectOptions::new()
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .port(self.port)
+            .host(&self.host)
+            .ssl_mode(ssl_mode)
+            .database(&self.db_name)
     }
 }
 
 pub fn create_pool(cfg: &DBSettings) -> PgPool {
-    let options = PgConnectOptions::new()
-        .username(&cfg.username)
-        .password(cfg.password.expose_secret())
-        .port(cfg.port)
-        .host(&cfg.host)
-        .database(&cfg.db_name);
+    let options = cfg.connect_options();
 
     PgPoolOptions::new()
         .max_connections(cfg.max_connections)
