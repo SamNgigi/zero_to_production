@@ -1,6 +1,6 @@
 -- Add migration script here
 CREATE TABLE subscriptions (
-  id UUID DEFAULT uuidv7() NOT NULL UNIQUE,
+  id UUID NOT NULL UNIQUE,
   PRIMARY KEY (id),
   email TEXT NOT NULL UNIQUE,
   username TEXT NOT NULL,

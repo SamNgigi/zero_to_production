@@ -16,6 +16,7 @@ async fn main() {
 
     // INFO: App configuration
     let config = get_config().expect("Failed to read configuration");
+    tracing::info!("Connecting to database at host: {}", config.db.host);
     let connection_pool = create_pool(&config.db);
 
     let address = format!("{}:{}", config.app.host, config.app.port);
