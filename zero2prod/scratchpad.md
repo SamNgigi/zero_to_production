@@ -1,8 +1,8 @@
 ## Repetitive curl test
 ```curl
 curl -d "username=lei%20yin&email=lei_yin_loo%40gmail.com" http://127.0.0.1:8000/subscriptions
-curl -d "username=lei%20yin&email=lei_yin_loo%40gmail.com" https://zero2prod-axum-impl.fly.dev/subscriptions
-curl -v https://zero2prod-axum-impl.fly.dev/health_check
+curl -v https://zero2prod-axum-impl.fly.dev/health_check -> SUCCESSFUL
+curl -d "username=lei%20yin&email=lei_yin_loo%40gmail.com" https://zero2prod-axum-impl.fly.dev/subscriptions -> SUCCESSFUL
 
 ```
 ```Rust
