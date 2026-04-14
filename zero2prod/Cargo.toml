@@ -22,8 +22,10 @@ tracing = { version = "0.1.44", features = ["log"] }
 tracing-actix-web = "0.7.21"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", features = ["registry", "fmt", "env-filter", "json"] }
+unicode-segmentation = "1.13.2"
 uuid = { version = "1.23.0", features = ["v7", "rng", "serde"] }
 
 [dev-dependencies]
+claims = "0.8.0"
 once_cell = "1.21.4"
 reqwest = "0.13.2"

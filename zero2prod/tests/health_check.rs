@@ -20,7 +20,7 @@ use zero2prod::{
 #[tokio::test]
 async fn test_heath_check() {
     // Arrange
-    let s = Uuid::now_v7();
+    let _s = Uuid::now_v7();
     let app = spawn_app().await;
     // Perfoming HTTP requests against our application using reqwest
     let client = reqwest::Client::new();
@@ -34,6 +34,78 @@ async fn test_heath_check() {
 
     assert!(response.status().is_success());
     assert_eq!(Some(0), response.content_length())
+}
+
+// Test to validate troublesome user input for name & email
+// #[tokio::test]
+// async fn subscribe_return_a_400_when_fields_are_present_but_invalid() {
+//     // Arrange
+//     let app = spawn_app().await;
+//     let client = reqwest::Client::new();
+//     let test_cases = vec![
+//         ("username=&email=lei_yin_loo%40gmail.com", "empty name"),
+//         ("username=lei&email=", "empty email"),
+//         (
+//             "username=lei&email=definitely-not-an-email",
+//             "invalid email",
+//         ),
+//     ];
+//
+//     for (body, description) in test_cases {
+//         // Act
+//         let response = client
+//             .post(format!("{}/subscriptions", &app.address))
+//             .header("Content-Type", "application/x-www-form-urlencoded")
+//             .body(body)
+//             .send()
+//             .await
+//             .expect("Failed to execute request.");
+//
+//         // println!("")
+//
+//         // Assert
+//         assert_eq!(
+//             400,
+//             response.status().as_u16(),
+//             "The API did not return a 400 Bad Request when the payload was {}.",
+//             description
+//         )
+//     }
+// }
+
+#[tokio::test]
+async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
+    // Arrange
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+    let test_cases = vec![
+        ("username=&email=ursula_le_guin%40gmail.com", "empty name"),
+        ("username=Ursula&email=", "empty email"),
+        (
+            "username=Ursula&email=definitely-not-an-email",
+            "invalid email",
+        ),
+    ];
+
+    for (body, description) in test_cases {
+        // Act
+        let response = client
+            .post(format!("{}/subscriptions", &app.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+
+        println!("RESPONSE: {:?}", response);
+        // Assert
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            "The API did not return a 400 Bad Request when the payload was {}.",
+            description
+        );
+    }
 }
 
 #[tokio::test]
