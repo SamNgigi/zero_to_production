@@ -5,7 +5,7 @@ use chrono::Utc;
 // use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
-use crate::domain::{NewSubscriber, SubscriberUsername};
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberUsername};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -28,17 +28,19 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>, // Retrieving a connection from App State
 ) -> HttpResponse {
+    let email = match SubscriberEmail::parse(form.0.email) {
+        Ok(email) => email,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
     let username = match SubscriberUsername::parse(form.0.username) {
         Ok(username) => username,
         // Return early if the name is invalid, with a 400
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
+
     // `web::Form` is a wrapper around `FormData`
     // `form.0` gives us acces to the underlying `FormData`
-    let new_subscriber = NewSubscriber {
-        email: form.0.email,
-        username,
-    };
+    let new_subscriber = NewSubscriber { email, username };
     match insert_subscriber(&pool, &new_subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish(),
@@ -61,7 +63,7 @@ pub async fn insert_subscriber(
             VALUES ($1, $2, $3, $4)
         "#,
         Uuid::now_v7(),
-        new_subscriber.email,
+        new_subscriber.email.as_ref(),
         new_subscriber.username.as_ref(),
         Utc::now(),
     )
