@@ -13,6 +13,18 @@ pub struct FormData {
     username: String,
 }
 
+// INFO: We use the TryFrom trait that gives us try_from & try_into that
+// takes care of our wire format (url-decoded data collected from a HTML form)
+// to our domain model (NewSubscriber)
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+    fn try_from(val: FormData) -> Result<Self, Self::Error> {
+        let username = SubscriberUsername::parse(val.username)?;
+        let email = SubscriberEmail::parse(val.email)?;
+        Ok(Self { username, email })
+    }
+}
+
 // INFO: `subscribe` orchestrates the work to be done by calling the
 // required routines and translates their outcome into the proper response
 // according to the rules and conventions of the HTTP protocol
@@ -28,19 +40,11 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>, // Retrieving a connection from App State
 ) -> HttpResponse {
-    let email = match SubscriberEmail::parse(form.0.email) {
-        Ok(email) => email,
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
-    let username = match SubscriberUsername::parse(form.0.username) {
-        Ok(username) => username,
-        // Return early if the name is invalid, with a 400
+    let new_subscriber = match form.0.try_into() {
+        Ok(form) => form,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    // `web::Form` is a wrapper around `FormData`
-    // `form.0` gives us acces to the underlying `FormData`
-    let new_subscriber = NewSubscriber { email, username };
     match insert_subscriber(&pool, &new_subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish(),
