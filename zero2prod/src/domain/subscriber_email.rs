@@ -1,9 +1,15 @@
-#[derive(Debug, Clone)]
+use validator::ValidateEmail;
+
+#[derive(Debug)]
 pub struct SubscriberEmail(String);
 
 impl SubscriberEmail {
     pub fn parse(s: String) -> Result<Self, String> {
-        todo!("PARSING EMAIL '{}' NOT YET IMPLEMENTED", s)
+        if s.validate_email() {
+            Ok(Self(s))
+        } else {
+            Err(format!("{} is not a valid subscriber email", s))
+        }
     }
 }
 
@@ -35,4 +41,7 @@ mod tests {
         let email = "@domain.com".to_string();
         assert_err!(SubscriberEmail::parse(email));
     }
+
+    #[derive(Debug, Clone)]
+    pub struct ValidateEmailFixture(pub String);
 }
