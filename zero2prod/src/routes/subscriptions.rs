@@ -39,7 +39,12 @@ pub async fn subscribe(
     State(db_pool): State<PgPool>,
     Form(form): Form<FormData>,
 ) -> impl IntoResponse {
-    match insert_subscriber(&db_pool, &form).await {
+    let new_subscriber = match NewSubscriber::try_from(form) {
+        Ok(form) => form,
+        Err(_) => return StatusCode::BAD_REQUEST,
+    };
+
+    match insert_subscriber(&db_pool, &new_subscriber).await {
         Ok(_) => StatusCode::OK,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
@@ -52,17 +57,20 @@ pub async fn subscribe(
 
 #[tracing::instrument(
     name = "Saving new subscriber details in the database",
-    skip(pool, form)
+    skip(pool, new_subscriber)
 )]
-async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {
+async fn insert_subscriber(
+    pool: &PgPool,
+    new_subscriber: &NewSubscriber,
+) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
             INSERT INTO subscriptions (id, email, username, subscribed_at)
             VALUES ($1, $2, $3, $4)
         "#,
         Uuid::now_v7(),
-        form.email,
-        form.username,
+        new_subscriber.email.as_ref(),
+        new_subscriber.username.as_ref(),
         Utc::now(),
     )
     .execute(pool)

@@ -25,6 +25,7 @@ tower-http = { version = "0.6.8", features = ["trace"] }
 tracing = { version = "0.1.44", features = ["log"] }
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", features = ["registry", "fmt", "env-filter", "json"] }
+unicode-segmentation = "1.13.2"
 uuid = { version = "1.23.0", default-features = false, features = ["v7", "rng", "serde"] }
 
 [dev-dependencies]
