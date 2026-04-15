@@ -3,10 +3,23 @@ use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberUsername};
+
 #[derive(serde::Deserialize)]
 pub struct FormData {
     email: String,
     username: String,
+}
+
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(form: FormData) -> Result<Self, Self::Error> {
+        let username = SubscriberUsername::parse(form.username)?;
+        let email = SubscriberEmail::parse(form.email)?;
+
+        Ok(NewSubscriber { username, email })
+    }
 }
 
 /* INFO:

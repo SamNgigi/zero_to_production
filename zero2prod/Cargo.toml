@@ -28,5 +28,6 @@ tracing-subscriber = { version = "0.3.23", features = ["registry", "fmt", "env-f
 uuid = { version = "1.23.0", default-features = false, features = ["v7", "rng", "serde"] }
 
 [dev-dependencies]
+claim = "0.5.0"
 reqwest = "0.13.2"
 
