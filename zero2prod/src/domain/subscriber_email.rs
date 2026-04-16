@@ -23,6 +23,11 @@ impl AsRef<str> for SubscriberEmail {
 mod tests {
     use crate::domain::SubscriberEmail;
     use claim::assert_err;
+    use fake::{
+        Fake,
+        faker::internet::en::SafeEmail,
+        rand::{SeedableRng, rngs::StdRng},
+    };
 
     #[test]
     fn test_empty_email_is_rejected() {
@@ -42,6 +47,39 @@ mod tests {
         assert_err!(SubscriberEmail::parse(email));
     }
 
+    /*
+     * INFO: Property-Based Testing
+     * This Methodology where instead of writing individual
+     * test cases with specific inputs and expected outputs, we define properties
+     * (general rules or invariants) that our code must always satisfy.
+     *
+     * We explore this using the following crates
+     * - fake
+     *  > generating random fake safe emails
+     * - quicktest
+     *  > property based testing tooling using randomly generated inputs.
+     *  > Only needs a property function - it will then randomly generate inputs to that function
+     *  > and call the property for each set of inputs. If the input property fails(at runtime
+     *  > or otherwise), the inputs are "shrunk" to find a smaller counter-example
+     * - quicktest-macro
+     *  > provides the #[quickcheck] attribute to convert a property function into a #[test]
+     *  >function reducing boilerplate
+     * */
+
     #[derive(Debug, Clone)]
     pub struct ValidateEmailFixture(pub String);
+
+    impl quickcheck::Arbitrary for ValidateEmailFixture {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            let mut rng = StdRng::seed_from_u64(u64::arbitrary(g));
+            let email = SafeEmail().fake_with_rng(&mut rng);
+            Self(email)
+        }
+    }
+
+    #[quickcheck_macros::quickcheck]
+    fn valid_emails_are_parsed_successfully(valid_email: ValidateEmailFixture) -> bool {
+        dbg!(&valid_email.0);
+        SubscriberEmail::parse(valid_email.0).is_ok()
+    }
 }
