@@ -4,6 +4,7 @@ use std::net::TcpListener;
 
 use zero2prod::{
     config::get_config,
+    email_client::EmailClient,
     startup::run,
     telemetry::{self, init_subscriber},
 };
@@ -19,10 +20,17 @@ async fn main() -> Result<(), std::io::Error> {
     // No longer async, given that we don't actually try to connect. We use connect_lazy instead
     let connection_pool = PgPool::connect_lazy(config.db.connection_string().expose_secret())
         .expect("Failed to connect to Postgres.");
+    // Building an `EmailClient` using `config`
+    let sender = config
+        .email_client
+        .sender()
+        .expect("Invalid sender email address");
+    let email_client = EmailClient::new(config.email_client.base_url, sender);
+
     let address = format!("{}:{}", config.app.host, config.app.port);
     let listener = TcpListener::bind(address)
         .unwrap_or_else(|_| panic!("Failed to bind to port: {}", config.app.port));
 
     // INFO: Run App
-    run(listener, connection_pool)?.await
+    run(listener, connection_pool, email_client)?.await
 }

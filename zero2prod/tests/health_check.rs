@@ -6,6 +6,7 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     config::{DBSettings, get_config},
+    email_client::EmailClient,
     startup::run,
     telemetry::{self, init_subscriber},
 };
@@ -85,7 +86,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
     for (body, description) in test_cases {
         // Act
         let response = client
-            .post(&format!("{}/subscriptions", &app.address))
+            .post(format!("{}/subscriptions", &app.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -199,8 +200,16 @@ async fn spawn_app() -> TestApp {
     let mut configuration = get_config().expect("Failed to read configuration");
     configuration.db.db_name = Uuid::now_v7().to_string();
 
+    // Building email client for test
+    let sender = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+    let email_client = EmailClient::new(configuration.email_client.base_url, sender);
+
     let connection_pool = configure_db(&configuration.db).await;
-    let server = run(listener, connection_pool.clone()).expect("Failed to bind address");
+    let server =
+        run(listener, connection_pool.clone(), email_client).expect("Failed to bind address");
     let _task = tokio::spawn(server);
 
     // Returning the application address to the caller
