@@ -25,6 +25,7 @@ tracing-subscriber = { version = "0.3.23", features = ["registry", "fmt", "env-f
 unicode-segmentation = "1.13.2"
 uuid = { version = "1.23.0", features = ["v7", "rng", "serde"] }
 validator = "0.20.0"
+reqwest = { version = "0.13.2", features = ["json", "rustls"] }
 
 [dev-dependencies]
 claims = "0.8.0"
@@ -32,4 +33,3 @@ fake = "5.1.0"
 once_cell = "1.21.4"
 quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"
-reqwest = "0.13.2"
