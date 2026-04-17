@@ -7,3 +7,7 @@ Here we
 - Re-implement in Axum.
 
 ⚠️ Hand-written code for the purposes of learning.
+
+> **NOTE**:
+> Uses Rust based Jupyter Notebook(via [evcxr](https://www.freecodecamp.org/news/how-to-run-rust-on-jupyter-notebooks/)) for notes instead of raw Markdown to explore some of the crates
+> used in the project
