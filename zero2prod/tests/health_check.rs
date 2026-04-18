@@ -4,6 +4,7 @@ use tokio::net::TcpListener as TokioTcpListener;
 use uuid::Uuid;
 use zero2prod::{
     config::{DBSettings, get_config},
+    email_client::EmailClient,
     startup as z2p, telemetry,
 };
 
@@ -122,13 +123,18 @@ async fn spawn_app() -> TestApp {
 
     let mut configuration = get_config().expect("Failed to read configuration");
     configuration.db.db_name = format!("newsletter_test_db_{}", Uuid::now_v7());
+    let sender = configuration
+        .email_client
+        .sender()
+        .expect("Invalid Email Address");
+    let email_client = EmailClient::new(configuration.email_client.base_url, sender);
 
     let connection_pool = configure_db(&configuration.db).await;
     let db_pool = connection_pool.clone();
 
     // INFO: Run app as async block/future in test context
     tokio::spawn(async move {
-        z2p::run(listener, db_pool)
+        z2p::run(listener, db_pool, email_client)
             .await
             .expect("Failed to run app in test");
     });

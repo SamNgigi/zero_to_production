@@ -6,6 +6,8 @@ use sqlx::{
 use secrecy::{ExposeSecret, SecretString};
 use serde_with::{DisplayFromStr, serde_as};
 
+use crate::domain::SubscriberEmail;
+
 pub enum Environment {
     DEVELOPMENT,
     PRODUCTION,
@@ -71,6 +73,19 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
 pub struct Settings {
     pub db: DBSettings,
     pub app: AppSettings,
+    pub email_client: EmailClientSettings,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct EmailClientSettings {
+    pub base_url: String,
+    pub sender_email: String,
+}
+
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        SubscriberEmail::parse(self.sender_email.clone())
+    }
 }
 
 #[serde_as]

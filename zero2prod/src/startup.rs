@@ -1,6 +1,9 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use crate::routes::{greet, health_check, subscribe};
+use crate::{
+    email_client::EmailClient,
+    routes::{greet, health_check, subscribe},
+};
 
 use axum::{
     Router, http,
@@ -12,9 +15,16 @@ use tower_http::{classify::ServerErrorsFailureClass, trace::TraceLayer};
 use tracing::Span;
 use uuid::Uuid;
 
+#[derive(Clone)]
+pub struct AppState {
+    pub db_pool: PgPool,
+    pub email_client: Arc<EmailClient>,
+}
+
 pub async fn run(
     listener: TokioTcpListener,
-    db_pool: PgPool, // New param
+    db_pool: PgPool,
+    email_client: EmailClient,
 ) -> Result<(), std::io::Error> {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(|request: &http::Request<_>| {
@@ -36,14 +46,17 @@ pub async fn run(
                 tracing::error!("error: {}", error)
             },
         );
-
+    let state = AppState {
+        db_pool,
+        email_client: Arc::new(email_client),
+    };
     let app = Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
         .route("/", get(greet))
         .route("/{name}", get(greet))
         .layer(tracing_layer)
-        .with_state(db_pool);
+        .with_state(state);
 
     println!("👂 Listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app)

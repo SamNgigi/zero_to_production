@@ -2,6 +2,7 @@ use tokio::net::TcpListener as TokioTcpListener;
 
 use zero2prod::{
     config::{create_pool, get_config},
+    email_client::EmailClient,
     startup as z2p, telemetry,
 };
 
@@ -18,6 +19,11 @@ async fn main() {
     let config = get_config().expect("Failed to read configuration");
     tracing::info!("Connecting to database at host: {}", config.db.host);
     let connection_pool = create_pool(&config.db);
+    let sender_email = config
+        .email_client
+        .sender()
+        .expect("Invalid sender email address");
+    let email_client = EmailClient::new(config.email_client.base_url, sender_email);
 
     let address = format!("{}:{}", config.app.host, config.app.port);
     let listener = TokioTcpListener::bind(address)
@@ -25,7 +31,7 @@ async fn main() {
         .expect("Failed to bind to port");
 
     // INFO: Running App
-    z2p::run(listener, connection_pool)
+    z2p::run(listener, connection_pool, email_client)
         .await
         .expect("Failed to run application");
 }
