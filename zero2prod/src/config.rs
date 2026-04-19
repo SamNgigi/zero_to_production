@@ -82,7 +82,14 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
         .add_source(config::File::from(
             config_directory.join(environment_filename),
         ))
+        .add_source(config::File::from(config_directory.join("local.yaml")).required(false))
+        .add_source(
+            config::Environment::with_prefix("APP")
+                .prefix_separator("_")
+                .separator("__"),
+        )
         .build()?;
+
     // Try to convert the read config values into our Setting type
     settings.try_deserialize::<Settings>()
 }
