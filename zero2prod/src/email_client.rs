@@ -25,3 +25,17 @@ impl EmailClient {
         todo!()
     }
 }
+/**
+ * TODO:
+ * 1. Add `tests_send_email_fires_request_to_base_url()`
+ * 2. Implement send_email sketch
+ *      - http_client.post(url)
+ *          - Initial with string then with `reqwest.Uri`
+ *      - `SendEmailRequestBody`
+ *      - `authorization_token`, update unnittest, main and health_check integration test
+ *          - update `EmailClientSettings config.rs as well
+ *          - update configuration/base.yaml and local.yaml
+ *      - Deal appropriately with SecretString and Faker
+ * */
+#[cfg(test)]
+mod tests {}
