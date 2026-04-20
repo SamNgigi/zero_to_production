@@ -1,33 +1,50 @@
 use crate::domain::SubscriberEmail;
 
 pub struct EmailClient {
-    _http_client: reqwest::Client,
-    _base_url: String,
-    _sender_email: SubscriberEmail,
+    http_client: reqwest::Client,
+    base_url: String,
+    sender_email: SubscriberEmail,
 }
 
 impl EmailClient {
-    pub fn new(_base_url: String, _sender_email: SubscriberEmail) -> Self {
+    pub fn new(base_url: String, sender_email: SubscriberEmail) -> Self {
         Self {
-            _http_client: reqwest::Client::new(),
-            _base_url,
-            _sender_email,
+            http_client: reqwest::Client::new(),
+            base_url,
+            sender_email,
         }
     }
 
     pub async fn send_email(
         &self,
-        _recipient_email: SubscriberEmail,
-        _subject_line: &str,
-        _html_content: &str,
-        _txt_content: &str,
+        recipient_email: SubscriberEmail,
+        subject_line: &str,
+        html_content: &str,
+        txt_content: &str,
     ) -> Result<(), String> {
-        Ok(()) // No matter the inputs
+        let req_body = SendEmailRequestBody {
+            from: self.sender_email.as_ref().to_owned(),
+            to: recipient_email.as_ref().to_owned(),
+            subject: subject_line.to_owned(),
+            html_content: html_content.to_owned(),
+            text_content: txt_content.to_owned(),
+        };
+        let _req_builder = self.http_client.post(&self.base_url).json(&req_body);
+        Ok(())
     }
 }
+
+#[derive(serde::Serialize)]
+struct SendEmailRequestBody {
+    from: String,
+    to: String,
+    subject: String,
+    html_content: String,
+    text_content: String,
+}
+
 /**
  * TODO:
- * 1. Add `tests_send_email_fires_request_to_base_url()`
  * 2. Implement send_email sketch
  *      - http_client.post(url)
  *          - Initial with string then with `reqwest.Uri`
