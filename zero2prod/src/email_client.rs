@@ -135,13 +135,7 @@ mod tests {
     async fn send_email_sends_expected_request() {
         // Arrange
         let mock_server = MockServer::start().await;
-        let sender_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let email_client = EmailClient::new(
-            mock_server.uri(),
-            sender_email,
-            // Updated secrecy does not have just `Secret`
-            SecretString::from(Faker.fake::<String>()),
-        );
+        let email_client = email_client(mock_server.uri());
 
         Mock::given(header_exists("X-Postmark-Server-Token"))
             .and(header("Content-Type", "application/json"))
@@ -154,19 +148,27 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let subject: String = Sentence(1..3).fake();
-        let content: String = Paragraph(1..10).fake();
-
         // Act
         let _ = email_client
-            .send_email(subscriber_email, &subject, &content, &content)
+            .send_email(email(), &subject(), &content(), &content())
             .await;
     }
 
     // INFO: HELPER FUNCTIONS
-    fn email_client() {}
-    fn subject() {}
-    fn content() {}
-    fn email() {}
+    fn email_client(base_url: String) -> EmailClient {
+        EmailClient::new(
+            base_url,
+            SubscriberEmail::parse(SafeEmail().fake()).expect("Failed to parse test sender email"),
+            SecretString::from(Faker.fake::<String>()),
+        )
+    }
+    fn email() -> SubscriberEmail {
+        SubscriberEmail::parse(SafeEmail().fake()).expect("Failed to parse test email address")
+    }
+    fn subject() -> String {
+        Sentence(1..3).fake()
+    }
+    fn content() -> String {
+        Paragraph(1..10).fake()
+    }
 }
