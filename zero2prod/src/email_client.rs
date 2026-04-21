@@ -47,7 +47,9 @@ impl EmailClient {
             )
             .json(&req_body)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
+
         Ok(())
     }
 }
@@ -118,12 +120,43 @@ mod tests {
 
     #[tokio::test]
     async fn send_email_times_out_request_takes_too_long() {
-        assert_err!(Ok::<(), ()>(()))
+        // Arrange
+        let mock_server = MockServer::start().await;
+        let email_client = email_client(mock_server.uri());
+
+        let response = ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(180));
+        Mock::given(any())
+            .respond_with(response)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let outcome = email_client
+            .send_email(email(), &subject(), &content(), &content())
+            .await;
+
+        assert_err!(outcome);
     }
 
     #[tokio::test]
     async fn send_email_fails_if_server_returns_500() {
-        assert_err!(Ok::<(), ()>(()))
+        // Arrange
+        let mock_server = MockServer::start().await;
+        let email_client = email_client(mock_server.uri());
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let outcome = email_client
+            .send_email(email(), &subject(), &content(), &content())
+            .await;
+
+        assert_err!(outcome);
     }
 
     #[tokio::test]
@@ -143,7 +176,7 @@ mod tests {
             .send_email(email(), &subject(), &content(), &content())
             .await;
 
-        assert_ok!(outcome)
+        assert_ok!(outcome);
     }
 
     #[tokio::test]
