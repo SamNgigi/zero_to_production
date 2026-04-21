@@ -91,7 +91,7 @@ mod tests {
         MockServer,
         Request,
         ResponseTemplate,
-        matchers::{header, header_exists, method, path}, // We removed `any` from list
+        matchers::{any, header, header_exists, method, path}, // We removed `any` from list
     };
 
     struct SendEmailRequestBodyMatcher;
@@ -128,7 +128,22 @@ mod tests {
 
     #[tokio::test]
     async fn send_email_succeeds_if_server_returns_200() {
-        assert_ok!(Err::<(), ()>(()));
+        // Arrange
+        let mock_server = MockServer::start().await;
+        let email_client = email_client(mock_server.uri());
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let outcome = email_client
+            .send_email(email(), &subject(), &content(), &content())
+            .await;
+
+        assert_ok!(outcome)
     }
 
     #[tokio::test]
