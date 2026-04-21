@@ -76,6 +76,7 @@ mod tests {
     use crate::domain::SubscriberEmail;
     use crate::email_client::EmailClient;
 
+    use claims::{assert_err, assert_ok};
     use fake::{
         Fake, Faker,
         faker::{
@@ -113,6 +114,21 @@ mod tests {
                 false
             }
         }
+    }
+
+    #[tokio::test]
+    async fn send_email_times_out_request_takes_too_long() {
+        assert_err!(Ok::<(), ()>(()))
+    }
+
+    #[tokio::test]
+    async fn send_email_fails_if_server_returns_500() {
+        assert_err!(Ok::<(), ()>(()))
+    }
+
+    #[tokio::test]
+    async fn send_email_succeeds_if_server_returns_200() {
+        assert_ok!(Err::<(), ()>(()));
     }
 
     #[tokio::test]
