@@ -82,7 +82,7 @@ mod tests {
         MockServer,
         Request,
         ResponseTemplate,
-        matchers::{header, header_exists, method, path}, // We removed any for this list
+        matchers::{header, header_exists, method, path}, // We removed `any` from list
     };
 
     struct SendEmailRequestBodyMatcher;
