@@ -14,9 +14,11 @@ impl EmailClient {
         base_url: String,
         sender_email: SubscriberEmail,
         authorization_token: SecretString,
+        timeout: std::time::Duration,
     ) -> Self {
+        let http_client = reqwest::Client::builder().timeout(timeout).build().unwrap();
         Self {
-            http_client: reqwest::Client::new(),
+            http_client,
             base_url,
             sender_email,
             authorization_token,
@@ -208,6 +210,7 @@ mod tests {
             base_url,
             SubscriberEmail::parse(SafeEmail().fake()).expect("Failed to parse test sender email"),
             SecretString::from(Faker.fake::<String>()),
+            std::time::Duration::from_millis(200),
         )
     }
     fn email() -> SubscriberEmail {
