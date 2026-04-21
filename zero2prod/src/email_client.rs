@@ -75,7 +75,10 @@ mod tests {
         },
     };
     use secrecy::SecretString;
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::any};
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{header, header_exists, method, path},
+    };
 
     #[tokio::test]
     async fn send_email_fires_request_to_base_url() {
@@ -88,8 +91,26 @@ mod tests {
             // Updated secrecy does not have just `Secret`
             SecretString::from(Faker.fake::<String>()),
         );
-
-        Mock::given(any())
+        /*
+         * TODO:
+         * 1. Headers validation commit
+         *      - `header_exits` - token
+         *      - `header` - content type
+         *      - `path` - "/email"
+         *      - `method` - POST
+         * 2. Body validation commit
+         *      - implement `wiremock::Match trait` on `SendEmailRequestBodyMatcher` unit struct defining
+         *        the `matches` method.
+         *      - update Mock
+         *      - Get screenshot of errors
+         *      - Add `serde(rename_all)` proc macro on SendEmailRequestBody
+         * 3. Avoid unnecessary memory allocation on SendEmailRequestBody by using string slices
+         *    and lifetime annotations commit
+         * */
+        Mock::given(header_exists("X-Postmark-Server-Token"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("/email"))
+            .and(method("POST"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&mock_server)
