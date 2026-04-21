@@ -26,17 +26,17 @@ impl EmailClient {
     pub async fn send_email(
         &self,
         recipient_email: SubscriberEmail,
-        subject: &str,
+        subject_line: &str,
         html_content: &str,
         text_content: &str,
     ) -> Result<(), reqwest::Error> {
         let req_url = format!("{}/email", self.base_url);
         let req_body = SendEmailRequestBody {
-            from: self.sender_email.as_ref().to_owned(),
-            to: recipient_email.as_ref().to_owned(),
-            subject: subject.to_owned(),
-            text_body: text_content.to_owned(),
-            html_body: html_content.to_owned(),
+            from: self.sender_email.as_ref(),
+            to: recipient_email.as_ref(),
+            subject: subject_line,
+            text_body: text_content,
+            html_body: html_content,
         };
         let _req_builder = self
             .http_client
@@ -54,12 +54,12 @@ impl EmailClient {
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "PascalCase")]
-struct SendEmailRequestBody {
-    from: String,
-    to: String,
-    subject: String,
-    text_body: String,
-    html_body: String,
+struct SendEmailRequestBody<'a> {
+    from: &'a str,
+    to: &'a str,
+    subject: &'a str,
+    text_body: &'a str,
+    html_body: &'a str,
 }
 
 #[cfg(test)]
@@ -77,8 +77,12 @@ mod tests {
     };
     use secrecy::SecretString;
     use wiremock::{
-        Match, Mock, MockServer, Request, ResponseTemplate,
-        matchers::{header, header_exists, method, path},
+        Match,
+        Mock,
+        MockServer,
+        Request,
+        ResponseTemplate,
+        matchers::{header, header_exists, method, path}, // We removed any for this list
     };
 
     struct SendEmailRequestBodyMatcher;
@@ -104,7 +108,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn send_email_fires_request_to_base_url() {
+    async fn send_email_sends_expected_request() {
         // Arrange
         let mock_server = MockServer::start().await;
         let sender_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
@@ -114,21 +118,12 @@ mod tests {
             // Updated secrecy does not have just `Secret`
             SecretString::from(Faker.fake::<String>()),
         );
-        /*
-         * TODO:
-         * 2. Body validation commit
-         *      - implement `wiremock::Match trait` on `SendEmailRequestBodyMatcher` unit struct defining
-         *        the `matches` method.
-         *      - update Mock
-         *      - Get screenshot of errors
-         *      - Add `serde(rename_all)` proc macro on SendEmailRequestBody
-         * 3. Avoid unnecessary memory allocation on SendEmailRequestBody by using string slices
-         *    and lifetime annotations commit
-         * */
+
         Mock::given(header_exists("X-Postmark-Server-Token"))
             .and(header("Content-Type", "application/json"))
             .and(path("/email"))
             .and(method("POST"))
+            // Adding our custom matcher
             .and(SendEmailRequestBodyMatcher)
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
