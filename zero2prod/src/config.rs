@@ -57,6 +57,7 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
         .add_source(config::File::from(
             configuration_directory.join(environment_filename),
         ))
+        .add_source(config::File::from(configuration_directory.join("local.yaml")).required(false))
         // Add in settings from environment variables (with a prefix of APP and '__' as seperator)
         // E.g. `APP_APPLICATION_PORT=5001` would set `Settings.application.port`
         .add_source(
@@ -80,6 +81,7 @@ pub struct Settings {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
+    pub authorization_token: SecretString,
 }
 
 impl EmailClientSettings {

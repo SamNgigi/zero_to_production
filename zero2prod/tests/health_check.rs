@@ -127,7 +127,11 @@ async fn spawn_app() -> TestApp {
         .email_client
         .sender()
         .expect("Invalid Email Address");
-    let email_client = EmailClient::new(configuration.email_client.base_url, sender);
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        sender,
+        configuration.email_client.authorization_token,
+    );
 
     let connection_pool = configure_db(&configuration.db).await;
     let db_pool = connection_pool.clone();
