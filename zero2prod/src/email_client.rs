@@ -163,4 +163,10 @@ mod tests {
             .send_email(subscriber_email, &subject, &content, &content)
             .await;
     }
+
+    // INFO: HELPER FUNCTIONS
+    fn email_client() {}
+    fn subject() {}
+    fn content() {}
+    fn email() {}
 }
