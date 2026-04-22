@@ -1,5 +1,5 @@
 app:
   host: 0.0.0.0
 email_client:
-  base_url: "https://api.postmarkapp.com/email"
+  base_url_str: "https://api.postmarkapp.com/"
   sender_email: "placeholder@domain.com"

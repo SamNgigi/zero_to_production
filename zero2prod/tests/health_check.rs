@@ -123,13 +123,14 @@ async fn spawn_app() -> TestApp {
 
     let mut configuration = get_config().expect("Failed to read configuration");
     configuration.db.db_name = format!("newsletter_test_db_{}", Uuid::now_v7());
+    let base_url = configuration.email_client.base_url();
     let sender = configuration
         .email_client
         .sender()
         .expect("Invalid Email Address");
     let timeout = configuration.email_client.timeout();
     let email_client = EmailClient::new(
-        configuration.email_client.base_url,
+        base_url,
         sender,
         configuration.email_client.authorization_token,
         timeout,

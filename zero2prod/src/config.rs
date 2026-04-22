@@ -79,13 +79,17 @@ pub struct Settings {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct EmailClientSettings {
-    pub base_url: String,
+    pub base_url_str: String,
     pub sender_email: String,
     pub authorization_token: SecretString,
     pub timeout_milliseconds: u64,
 }
 
 impl EmailClientSettings {
+    pub fn base_url(&self) -> reqwest::Url {
+        reqwest::Url::parse(&self.base_url_str).expect("Failed to Parse `base_url_str`")
+    }
+
     pub fn sender(&self) -> Result<SubscriberEmail, String> {
         SubscriberEmail::parse(self.sender_email.clone())
     }

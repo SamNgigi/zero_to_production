@@ -4,14 +4,14 @@ use crate::domain::SubscriberEmail;
 
 pub struct EmailClient {
     http_client: reqwest::Client,
-    base_url: String,
+    base_url: reqwest::Url,
     sender_email: SubscriberEmail,
     authorization_token: SecretString,
 }
 
 impl EmailClient {
     pub fn new(
-        base_url: String,
+        base_url: reqwest::Url,
         sender_email: SubscriberEmail,
         authorization_token: SecretString,
         timeout: std::time::Duration,
@@ -35,7 +35,10 @@ impl EmailClient {
         html_content: &str,
         txt_content: &str,
     ) -> Result<(), reqwest::Error> {
-        let req_url = format!("{}/email", self.base_url);
+        let req_url = self
+            .base_url
+            .join("/email")
+            .expect("Hardcoded path should always join cleanly");
         let req_body = SendEmailRequestBody {
             from: self.sender_email.as_ref(),
             to: recipient_email.as_ref(),
@@ -45,7 +48,7 @@ impl EmailClient {
         };
         let _req_builder = self
             .http_client
-            .post(&req_url)
+            .post(req_url)
             .header(
                 "X-Postmark-Server-Token",
                 self.authorization_token.expose_secret(),
@@ -208,6 +211,7 @@ mod tests {
 
     // INFO: HELPERS
     fn email_client(base_url: String) -> EmailClient {
+        let base_url = reqwest::Url::parse(&base_url).expect("Failed to parse mock `base_url`");
         EmailClient::new(
             base_url,
             email(),

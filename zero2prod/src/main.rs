@@ -19,13 +19,14 @@ async fn main() {
     let config = get_config().expect("Failed to read configuration");
     tracing::info!("Connecting to database at host: {}", config.db.host);
     let connection_pool = create_pool(&config.db);
+    let base_url = config.email_client.base_url();
     let sender_email = config
         .email_client
         .sender()
         .expect("Invalid sender email address");
     let timeout = config.email_client.timeout();
     let email_client = EmailClient::new(
-        config.email_client.base_url,
+        base_url,
         sender_email,
         config.email_client.authorization_token,
         timeout,
