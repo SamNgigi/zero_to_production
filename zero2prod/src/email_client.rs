@@ -60,6 +60,23 @@ struct SendEmailRequestBody {
     text_content: String,
 }
 
+/*
+ *  TODO:
+ * 1. Tightening up our Happy Path tests
+ *      - refactor to `test_send_email_sends_expected_request`
+ *          > Headers: header_exists, header, path, method |-> commit
+ *          > Body: implementing custom SendEmailRequestBodyMatcher that implements the wiremock::Match
+ *                  trait calling the `matches`|-> commit
+ *      - refactoring unnecessary memory allocations|-> commit
+ * 2. Dealing with response from server and potential errors
+ *      - Implementation of additional tests
+ *      - Adds helpers to reduce duplicate code
+ *          > Add stubs for tests |-> commit
+ *          > send_email_email_succeeds_if_server_returns_200 |-> commit
+ *          > send_email_email_fails_if_server_returns_500 |-> commit
+ *          > send_email_times_out_if_server_response_takes_too_long |-> commit
+ *          > make timeouts configurable and fail fast for tests |-> commit
+ * */
 #[cfg(test)]
 mod tests {
     use crate::{domain::SubscriberEmail, email_client::EmailClient};
@@ -75,7 +92,7 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate, matchers::any};
 
     #[tokio::test]
-    async fn tests_send_email_fires_request_to_base_url() {
+    async fn send_email_fires_request_to_base_url() {
         // Arrange
         let mock_server = MockServer::start().await;
         let sender_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
