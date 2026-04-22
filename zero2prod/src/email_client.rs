@@ -14,9 +14,14 @@ impl EmailClient {
         base_url: String,
         sender_email: SubscriberEmail,
         authorization_token: SecretString,
+        timeout: std::time::Duration,
     ) -> Self {
+        let http_client = reqwest::Client::builder()
+            .timeout(timeout)
+            .build()
+            .expect("Failed to build `http_client`");
         Self {
-            http_client: reqwest::Client::new(),
+            http_client,
             base_url,
             sender_email,
             authorization_token,
@@ -95,7 +100,28 @@ mod tests {
 
     #[tokio::test]
     async fn send_email_times_out_if_response_takes_too_long() {
-        assert_err!(Ok::<(), ()>(()))
+        let mock_server = MockServer::start().await;
+        let email_client = email_client(mock_server.uri());
+
+        // Simulating a response that takes 3 minutes to return
+        let response = ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(180));
+        Mock::given(header_exists("X-Postmark-Server-Token"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("/email"))
+            .and(method("POST"))
+            .and(SendEmailRequestBodyMatcher)
+            .respond_with(response)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let outcome = email_client
+            .send_email(email(), &subject(), &content(), &content())
+            .await;
+
+        // Assert
+        assert_err!(outcome);
     }
 
     #[tokio::test]
@@ -197,6 +223,7 @@ mod tests {
             base_url,
             email(),
             SecretString::from(Faker.fake::<String>()),
+            std::time::Duration::from_millis(200),
         )
     }
     fn email() -> SubscriberEmail {
