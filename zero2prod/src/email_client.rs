@@ -30,6 +30,7 @@ impl EmailClient {
         html_content: &str,
         txt_content: &str,
     ) -> Result<(), reqwest::Error> {
+        let req_url = format!("{}/email", self.base_url);
         let req_body = SendEmailRequestBody {
             from: self.sender_email.as_ref().to_owned(),
             to: recipient_email.as_ref().to_owned(),
@@ -39,7 +40,7 @@ impl EmailClient {
         };
         let _req_builder = self
             .http_client
-            .post(&self.base_url)
+            .post(&req_url)
             .header(
                 "X-Postmark-Server-Token",
                 self.authorization_token.expose_secret(),
@@ -89,7 +90,10 @@ mod tests {
         },
     };
     use secrecy::SecretString;
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::any};
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{header, header_exists, method, path},
+    };
 
     #[tokio::test]
     async fn send_email_fires_request_to_base_url() {
@@ -97,7 +101,10 @@ mod tests {
         let mock_server = MockServer::start().await;
         let email_client = email_client(mock_server.uri());
 
-        Mock::given(any())
+        Mock::given(header_exists("X-Postmark-Server-Token"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("/email"))
+            .and(method("POST"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&mock_server)
