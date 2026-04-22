@@ -68,17 +68,6 @@ struct SendEmailRequestBody<'a> {
     text_body: &'a str,
 }
 
-/*
- *  TODO:
- * 2. Dealing with response from server and potential errors
- *      - Implementation of additional tests
- *      - Adds helpers to reduce duplicate code
- *          > Add stubs for tests |-> commit
- *          > send_email_email_succeeds_if_server_returns_200 |-> commit
- *          > send_email_email_fails_if_server_returns_500 |-> commit
- *          > send_email_times_out_if_server_response_takes_too_long |-> commit
- *          > make timeouts configurable and fail fast for tests |-> commit
- * */
 #[cfg(test)]
 mod tests {
     use crate::{domain::SubscriberEmail, email_client::EmailClient};
