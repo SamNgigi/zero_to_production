@@ -64,12 +64,6 @@ struct SendEmailRequestBody<'a> {
 
 /*
  *  TODO:
- * 1. Tightening up our Happy Path tests
- *      - refactor to `send_email_sends_expected_request`
- *          > Headers: header_exists, header, path, method |-> commit
- *          > Body: implementing custom SendEmailRequestBodyMatcher that implements the wiremock::Match
- *                  trait calling the `matches`|-> commit
- *      - refactoring unnecessary memory allocations|-> commit
  * 2. Dealing with response from server and potential errors
  *      - Implementation of additional tests
  *      - Adds helpers to reduce duplicate code
@@ -95,6 +89,23 @@ mod tests {
         Match, Mock, MockServer, Request, ResponseTemplate,
         matchers::{header, header_exists, method, path},
     };
+
+    use claim::{assert_err, assert_ok};
+
+    #[tokio::test]
+    async fn send_email_succeeds_if_server_returns_200() {
+        assert_ok!(Err::<(), ()>(()));
+    }
+
+    #[tokio::test]
+    async fn send_email_fails_if_server_returns_500() {
+        assert_err!(Ok::<(), ()>(()));
+    }
+
+    #[tokio::test]
+    async fn send_email_times_out_if_response_takes_too_long() {
+        assert_err!(Ok::<(), ()>(()))
+    }
 
     struct SendEmailRequestBodyMatcher;
 
