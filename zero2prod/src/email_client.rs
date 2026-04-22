@@ -35,8 +35,8 @@ impl EmailClient {
             from: self.sender_email.as_ref().to_owned(),
             to: recipient_email.as_ref().to_owned(),
             subject: subject_line.to_owned(),
-            html_content: html_content.to_owned(),
-            text_content: txt_content.to_owned(),
+            html_body: html_content.to_owned(),
+            text_body: txt_content.to_owned(),
         };
         let _req_builder = self
             .http_client
@@ -53,12 +53,13 @@ impl EmailClient {
 }
 
 #[derive(serde::Serialize)]
+#[serde(rename_all = "PascalCase")]
 struct SendEmailRequestBody {
     from: String,
     to: String,
     subject: String,
-    html_content: String,
-    text_content: String,
+    html_body: String,
+    text_body: String,
 }
 
 /*
@@ -91,9 +92,27 @@ mod tests {
     };
     use secrecy::SecretString;
     use wiremock::{
-        Mock, MockServer, ResponseTemplate,
+        Match, Mock, MockServer, Request, ResponseTemplate,
         matchers::{header, header_exists, method, path},
     };
+
+    struct SendEmailRequestBodyMatcher;
+
+    impl Match for SendEmailRequestBodyMatcher {
+        fn matches(&self, req: &Request) -> bool {
+            let result: Result<serde_json::Value, _> = serde_json::from_slice(&req.body);
+            if let Ok(body) = result {
+                dbg!(&body);
+                body.get("From").is_some()
+                    && body.get("To").is_some()
+                    && body.get("Subject").is_some()
+                    && body.get("HtmlBody").is_some()
+                    && body.get("TextBody").is_some()
+            } else {
+                false
+            }
+        }
+    }
 
     #[tokio::test]
     async fn send_email_fires_request_to_base_url() {
@@ -105,6 +124,7 @@ mod tests {
             .and(header("Content-Type", "application/json"))
             .and(path("/email"))
             .and(method("POST"))
+            .and(SendEmailRequestBodyMatcher)
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&mock_server)
