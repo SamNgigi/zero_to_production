@@ -65,15 +65,7 @@ struct SendEmailRequestBody<'a> {
     text_body: &'a str,
     html_body: &'a str,
 }
-/* TODO: Dealing with Failures
- * 1. Wire tests for responses
- *      - 200 response specific test
- *      - 500 response
- * 2. Handling Timeout
- * 3. Making Timeout configurable.
- * 4. Refactoring out duplicate code into reusable functions
- *
- *  */
+
 #[cfg(test)]
 mod tests {
 
