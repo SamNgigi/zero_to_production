@@ -93,13 +93,33 @@ mod tests {
     use claim::{assert_err, assert_ok};
 
     #[tokio::test]
-    async fn send_email_fails_if_server_returns_500() {
-        assert_err!(Ok::<(), ()>(()));
+    async fn send_email_times_out_if_response_takes_too_long() {
+        assert_err!(Ok::<(), ()>(()))
     }
 
     #[tokio::test]
-    async fn send_email_times_out_if_response_takes_too_long() {
-        assert_err!(Ok::<(), ()>(()))
+    async fn send_email_fails_if_server_returns_500() {
+        // Arrange
+        let mock_server = MockServer::start().await;
+        let email_client = email_client(mock_server.uri());
+
+        Mock::given(header_exists("X-Postmark-Server-Token"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("/email"))
+            .and(method("POST"))
+            .and(SendEmailRequestBodyMatcher)
+            .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let outcome = email_client
+            .send_email(email(), &subject(), &content(), &content())
+            .await;
+
+        // Assert
+        assert_err!(outcome);
     }
 
     #[tokio::test]
