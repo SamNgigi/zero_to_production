@@ -134,3 +134,32 @@ db:
 
 
 ```
+```sql
+SELECT 'DROP TABLE IF EXISTS ' || quote_ident(tablename) || ' CASCADE;'
+FROM pg_tables
+WHERE schemaname = 'public'
+  AND tablename LIKE 'prefix_%';
+```
+```sql
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN
+        SELECT tablename
+        FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename LIKE '019d%'
+    LOOP
+        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+    END LOOP;
+END;
+$$;
+
+```
+```bash
+psql -U postgres -t -A -c \
+  "SELECT datname FROM pg_database WHERE datname LIKE '019d%';" \
+| xargs -I {} psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS \"{}\";"
+
+```

@@ -198,7 +198,8 @@ async fn spawn_app() -> TestApp {
     let address = format!("http://127.0.0.1:{}", port);
 
     let mut configuration = get_config().expect("Failed to read configuration");
-    configuration.db.db_name = Uuid::now_v7().to_string();
+    // configuration.db.db_name = Uuid::now_v7().to_string();
+    configuration.db.db_name = format!("newsletter_test_db_actix_{}", Uuid::now_v7());
 
     // Building email client for test
     let sender = configuration
