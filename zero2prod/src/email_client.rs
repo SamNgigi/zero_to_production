@@ -32,11 +32,11 @@ impl EmailClient {
     ) -> Result<(), reqwest::Error> {
         let req_url = format!("{}/email", self.base_url);
         let req_body = SendEmailRequestBody {
-            from: self.sender_email.as_ref().to_owned(),
-            to: recipient_email.as_ref().to_owned(),
-            subject: subject_line.to_owned(),
-            html_body: html_content.to_owned(),
-            text_body: txt_content.to_owned(),
+            from: self.sender_email.as_ref(),
+            to: recipient_email.as_ref(),
+            subject: subject_line,
+            html_body: html_content,
+            text_body: txt_content,
         };
         let _req_builder = self
             .http_client
@@ -54,12 +54,12 @@ impl EmailClient {
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "PascalCase")]
-struct SendEmailRequestBody {
-    from: String,
-    to: String,
-    subject: String,
-    html_body: String,
-    text_body: String,
+struct SendEmailRequestBody<'a> {
+    from: &'a str,
+    to: &'a str,
+    subject: &'a str,
+    html_body: &'a str,
+    text_body: &'a str,
 }
 
 /*
