@@ -63,7 +63,7 @@ struct SendEmailRequestBody {
 /*
  *  TODO:
  * 1. Tightening up our Happy Path tests
- *      - refactor to `test_send_email_sends_expected_request`
+ *      - refactor to `send_email_sends_expected_request`
  *          > Headers: header_exists, header, path, method |-> commit
  *          > Body: implementing custom SendEmailRequestBodyMatcher that implements the wiremock::Match
  *                  trait calling the `matches`|-> commit
@@ -95,9 +95,7 @@ mod tests {
     async fn send_email_fires_request_to_base_url() {
         // Arrange
         let mock_server = MockServer::start().await;
-        let sender_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let authorization_token = SecretString::from(Faker.fake::<String>());
-        let email_client = EmailClient::new(mock_server.uri(), sender_email, authorization_token);
+        let email_client = email_client(mock_server.uri());
 
         Mock::given(any())
             .respond_with(ResponseTemplate::new(200))
@@ -105,13 +103,30 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let recipient_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let subject: String = Sentence(1..3).fake();
-        let content: String = Paragraph(1..10).fake();
-
         // Act
         let _ = email_client
-            .send_email(recipient_email, &subject, &content, &content)
+            .send_email(email(), &subject(), &content(), &content())
             .await;
+
+        // Assert
+        // Mock expectations are checked on drop
+    }
+
+    // INFO: HELPERS
+    fn email_client(base_url: String) -> EmailClient {
+        EmailClient::new(
+            base_url,
+            email(),
+            SecretString::from(Faker.fake::<String>()),
+        )
+    }
+    fn email() -> SubscriberEmail {
+        SubscriberEmail::parse(SafeEmail().fake()).expect("Failed to parse test email")
+    }
+    fn subject() -> String {
+        Sentence(1..3).fake()
+    }
+    fn content() -> String {
+        Paragraph(1..10).fake()
     }
 }
