@@ -47,7 +47,8 @@ impl EmailClient {
             )
             .json(&req_body)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
         Ok(())
     }
 }
