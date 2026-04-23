@@ -11,3 +11,8 @@ Here we
 > **NOTE**:
 > Uses Rust based Jupyter Notebook(via [evcxr](https://www.freecodecamp.org/news/how-to-run-rust-on-jupyter-notebooks/)) for notes instead of raw Markdown to explore some of the crates
 > used in the project
+> 
+> When no crate is explored in a notebook, we convert the notebooks to markdown files via the command
+> ```bash
+> jupyter nbconvert --to markdown notebook_name.ipynb
+> ```
