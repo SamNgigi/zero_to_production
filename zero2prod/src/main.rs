@@ -38,5 +38,7 @@ async fn main() -> Result<(), std::io::Error> {
         .unwrap_or_else(|_| panic!("Failed to bind to port: {}", config.app.port));
 
     // INFO: Run App
-    run(listener, connection_pool, email_client)?.await
+    run(listener, connection_pool, email_client)?.await?;
+
+    Ok(())
 }
