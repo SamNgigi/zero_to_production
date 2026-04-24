@@ -1,4 +1,5 @@
 use secrecy::{ExposeSecret, SecretString};
+use sqlx::postgres::PgConnectOptions;
 
 use crate::domain::SubscriberEmail;
 
@@ -32,7 +33,7 @@ pub struct AppSettings {
     pub host: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct DBSettings {
     pub username: String,
     pub password: SecretString,
@@ -42,6 +43,15 @@ pub struct DBSettings {
 }
 
 impl DBSettings {
+    pub fn connect_options(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .host(&self.host)
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .port(self.port)
+            .database(&self.db_name)
+    }
+
     pub fn connection_string(&self) -> SecretString {
         SecretString::new(
             format!(

@@ -1,5 +1,4 @@
-use secrecy::ExposeSecret;
-use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use std::net::TcpListener;
 
 use zero2prod::{
@@ -18,8 +17,7 @@ async fn main() -> Result<(), std::io::Error> {
     // INFO: App configuration
     let config = get_config().expect("Failed to read configuration");
     // No longer async, given that we don't actually try to connect. We use connect_lazy instead
-    let connection_pool = PgPool::connect_lazy(config.db.connection_string().expose_secret())
-        .expect("Failed to connect to Postgres.");
+    let connection_pool = PgPoolOptions::new().connect_lazy_with(config.db.connect_options());
     // Building an `EmailClient` using `config`
     let sender = config
         .email_client
