@@ -131,10 +131,10 @@ async fn subscribe_returns_400_when_data_is_missing() {
     }
 }
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 // INFO: Ensuring that the `tracing` stack is only initialized once using `once_cell`
-static TRACING: Lazy<()> = Lazy::new(|| {
+static TRACING: LazyLock<()> = LazyLock::new(|| {
     let default_filter_level = "info".to_string();
     // INFO: We cannot assign the output of `get_subscriber` to a variable based on the
     // value `TEST_LOG` because the sink is part of the type returned by
@@ -158,7 +158,7 @@ pub struct TestApp {
 async fn spawn_app() -> TestApp {
     // INFO: The first time `initialize` is invoked the code in `TRACING` is executed.
     // All other invocations will instead skip execution
-    Lazy::force(&TRACING);
+    LazyLock::force(&TRACING);
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
 
