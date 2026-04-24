@@ -133,7 +133,8 @@ async fn subscribe_returns_400_when_data_is_missing() {
 
 use std::sync::LazyLock;
 
-// INFO: Ensuring that the `tracing` stack is only initialized once using `once_cell`
+// INFO: Ensuring that the `tracing` stack is only initialized once using `std::sync::LazyLock`
+// replacing `once_cell::sync::Lazy`
 static TRACING: LazyLock<()> = LazyLock::new(|| {
     let default_filter_level = "info".to_string();
     // INFO: We cannot assign the output of `get_subscriber` to a variable based on the
