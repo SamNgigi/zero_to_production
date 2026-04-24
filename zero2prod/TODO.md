@@ -1,4 +1,7 @@
-Just finished going through sub-chapter _'Skeleton And Principles For A Maintainable Test Suite'_<br>
+# TODOS
+
+### Skeleton And Principles For A Maintainable Test Suite 
+
 Want to implement everything from memory as best as I can<br>
 Here's a high-level TODO of the tasks that need to be completed
 - [ ] Create `api` submodule in tests with;
