@@ -9,7 +9,7 @@ db:
   max_connections: 10
   require_ssl: false
 email_client:
-  base_url_str: "localhost"
+  base_url_str: "http://placeholder_url.com"
   sender_email: "test@gmail.com"
   authorization_token: "placeholder-token"
   timeout_milliseconds: 10000
