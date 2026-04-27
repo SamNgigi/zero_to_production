@@ -1,4 +1,3 @@
-use std::net::TcpListener;
 use std::sync::LazyLock;
 
 use secrecy::SecretString;
@@ -7,8 +6,7 @@ use uuid::Uuid;
 
 use zero2prod::{
     config::{DBSettings, get_config},
-    email_client::EmailClient,
-    startup::run,
+    startup::{Application, get_connection_pool},
     telemetry,
 };
 
@@ -42,45 +40,29 @@ pub async fn spawn_app() -> TestApp {
     // All other invocations will instead skip execution
     LazyLock::force(&TRACING);
 
-    // Building listener and capturing the listener port
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port");
-    let port = listener.local_addr().unwrap().port();
-    let address = format!("http://127.0.0.1:{}", port);
+    let configuration = {
+        let mut cfg = get_config().expect("Failed to read configuration");
+        cfg.db.db_name = format!("newsletter_actix_test_db_{}", Uuid::now_v7());
+        cfg.app.port = 0;
+        cfg
+    };
 
-    let mut config = get_config().expect("Failed to read configuration");
-
-    // Building connection_pool
-    config.db.db_name = format!("newsletter_test_db_actix_{}", Uuid::now_v7());
-    let connection_pool = configure_db(&config.db).await;
-
-    // Building email client
-    let sender_email = config
-        .email_client
-        .sender()
-        .expect("Invalid sender email address");
-    let timeout = config.email_client.timeout();
-    let email_client = EmailClient::new(
-        config.email_client.base_url,
-        sender_email,
-        config.email_client.authorization_token,
-        timeout,
-    );
-
-    // Build server
-    let server =
-        run(listener, connection_pool.clone(), email_client).expect("Failed to bind address");
-    let _task = tokio::spawn(server);
-
+    configure_db(&configuration.db).await;
+    let app = Application::build(configuration.clone())
+        .await
+        .expect("Failed to build Application");
+    let address = format!("http://127.0.0.1:{}", app.port());
+    let _task = tokio::spawn(app.run_until_stopped());
     // Return TestApp
     TestApp {
         address,
-        db_pool: connection_pool,
+        db_pool: get_connection_pool(&configuration.db),
     }
 }
 
 async fn configure_db(config: &DBSettings) -> PgPool {
     // Instantiating test db settings
-    let maintainenc_settings = DBSettings {
+    let maintainence_settings = DBSettings {
         db_name: "postgres".to_string(),
         username: "postgres".to_string(),
         password: SecretString::new("password".into()),
@@ -88,7 +70,7 @@ async fn configure_db(config: &DBSettings) -> PgPool {
     };
 
     // Making the connection
-    let mut connection = PgConnection::connect_with(&maintainenc_settings.connect_options())
+    let mut connection = PgConnection::connect_with(&maintainence_settings.connect_options())
         .await
         .expect("Failed to connect to Postgres");
 
