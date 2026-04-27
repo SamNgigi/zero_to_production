@@ -4,7 +4,6 @@ use crate::helpers::spawn_app;
 async fn subscribe_returns_400_when_form_fields_are_present_but_invalid() {
     // Arrange
     let app = spawn_app().await;
-    let client = reqwest::Client::new();
     let test_cases = vec![
         ("username=&email=lei_yin_loo%40gmail.com", "empty name"),
         ("username=lei&email=", "empty email"),
@@ -16,14 +15,7 @@ async fn subscribe_returns_400_when_form_fields_are_present_but_invalid() {
 
     for (body, description) in test_cases {
         // Act
-        let response = client
-            .post(format!("{}/subscriptions", &app.address))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-
+        let response = app.post_subscriptions(body.to_owned()).await;
         // Assert
         assert_eq!(
             400,
@@ -38,7 +30,6 @@ async fn subscribe_returns_400_when_form_fields_are_present_but_invalid() {
 async fn subscribe_returns_400_when_form_data_is_missing() {
     // Arrange
     let app = spawn_app().await;
-    let client = reqwest::Client::new();
     let test_cases = vec![
         ("username=lei%20yin", "missing the email"),
         ("email=lei_yin_loo%40gmail.com", "missing the name"),
@@ -47,14 +38,7 @@ async fn subscribe_returns_400_when_form_data_is_missing() {
 
     for (invalid_body, error_message) in test_cases {
         // Act
-        let response = client
-            .post(format!("{}/subscriptions", &app.address))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(invalid_body)
-            .send()
-            .await
-            .expect("Failed to execute request");
-
+        let response = app.post_subscriptions(invalid_body.into()).await;
         assert_eq!(
             400,
             response.status().as_u16(),
@@ -72,13 +56,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
 
     // Act
     let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
-    let response = reqwest::Client::new()
-        .post(format!("{}/subscriptions", &app.address))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to execute valid subscriptions request");
+    let response = app.post_subscriptions(body.into()).await;
     // Assert
     assert_eq!(200, response.status().as_u16());
 
