@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use crate::{
+    config::{DBSettings, Settings},
     email_client::EmailClient,
     routes::{greet, health_check, subscribe},
 };
@@ -9,11 +10,66 @@ use axum::{
     Router, http,
     routing::{get, post},
 };
-use sqlx::PgPool;
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{net::TcpListener as TokioTcpListener, signal};
 use tower_http::{classify::ServerErrorsFailureClass, trace::TraceLayer};
 use tracing::Span;
 use uuid::Uuid;
+
+pub struct Application {
+    port: u16,
+    listener: TokioTcpListener,
+    router: Router,
+}
+
+impl Application {
+    pub async fn build(config: Settings) -> Result<Self, std::io::Error> {
+        // Setup `listener` and extract `port`
+        let address = format!("{}:{}", config.app.host, config.app.port);
+        let listener = TokioTcpListener::bind(address)
+            .await
+            .expect("Failed to bind to port in build");
+        let port = listener.local_addr().unwrap().port();
+
+        // Setup `connection_pool`
+        let connection_pool = get_connection_pool(&config.db).await;
+
+        // Setup `email_client`
+        let base_url = config.email_client.base_url();
+        let sender_email = config
+            .email_client
+            .sender()
+            .expect("Invalid sender email address");
+        let timeout = config.email_client.timeout();
+        let email_client = EmailClient::new(
+            base_url,
+            sender_email,
+            config.email_client.authorization_token,
+            timeout,
+        );
+
+        let router = build_router(connection_pool, email_client);
+
+        Ok(Self {
+            port,
+            listener,
+            router,
+        })
+    }
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+    pub async fn run_until_stopped(self) -> Result<(), std::io::Error> {
+        println!("👂 Listening on {}", &self.listener.local_addr().unwrap());
+        axum::serve(self.listener, self.router)
+            .with_graceful_shutdown(shutdown_signal())
+            .await
+    }
+}
+
+pub async fn get_connection_pool(db_config: &DBSettings) -> PgPool {
+    PgPoolOptions::new().connect_lazy_with(db_config.connect_options())
+}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -21,11 +77,7 @@ pub struct AppState {
     pub email_client: Arc<EmailClient>,
 }
 
-pub async fn run(
-    listener: TokioTcpListener,
-    db_pool: PgPool,
-    email_client: EmailClient,
-) -> Result<(), std::io::Error> {
+fn build_router(db_pool: PgPool, email_client: EmailClient) -> Router {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(|request: &http::Request<_>| {
             let request_id = Uuid::now_v7();
@@ -46,22 +98,19 @@ pub async fn run(
                 tracing::error!("error: {}", error)
             },
         );
+
     let state = AppState {
         db_pool,
         email_client: Arc::new(email_client),
     };
-    let app = Router::new()
+
+    Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
         .route("/", get(greet))
         .route("/{name}", get(greet))
         .layer(tracing_layer)
-        .with_state(state);
-
-    println!("👂 Listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
+        .with_state(state)
 }
 
 async fn shutdown_signal() {

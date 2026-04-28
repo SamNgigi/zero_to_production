@@ -1,13 +1,7 @@
-use tokio::net::TcpListener as TokioTcpListener;
-
-use zero2prod::{
-    config::{create_pool, get_config},
-    email_client::EmailClient,
-    startup as z2p, telemetry,
-};
+use zero2prod::{config::get_config, startup::Application, telemetry};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), std::io::Error> {
     // INFO: Telemetry setup
     let subscriber = telemetry::get_tracing_subscriber(
         "info".into(),
@@ -18,27 +12,15 @@ async fn main() {
     // INFO: App configuration
     let config = get_config().expect("Failed to read configuration");
     tracing::info!("Connecting to database at host: {}", config.db.host);
-    let connection_pool = create_pool(&config.db);
-    let base_url = config.email_client.base_url();
-    let sender_email = config
-        .email_client
-        .sender()
-        .expect("Invalid sender email address");
-    let timeout = config.email_client.timeout();
-    let email_client = EmailClient::new(
-        base_url,
-        sender_email,
-        config.email_client.authorization_token,
-        timeout,
-    );
 
-    let address = format!("{}:{}", config.app.host, config.app.port);
-    let listener = TokioTcpListener::bind(address)
+    let app = Application::build(config)
         .await
-        .expect("Failed to bind to port");
+        .expect("Failed to build application");
 
     // INFO: Running App
-    z2p::run(listener, connection_pool, email_client)
+    app.run_until_stopped()
         .await
         .expect("Failed to run application");
+
+    Ok(())
 }
