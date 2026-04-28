@@ -70,14 +70,14 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
     settings.try_deserialize::<Settings>()
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct Settings {
     pub db: DBSettings,
     pub app: AppSettings,
     pub email_client: EmailClientSettings,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct EmailClientSettings {
     pub base_url_str: String,
     pub sender_email: String,
@@ -100,7 +100,7 @@ impl EmailClientSettings {
 }
 
 #[serde_as]
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct AppSettings {
     #[serde_as(as = "DisplayFromStr")]
     pub port: u16,

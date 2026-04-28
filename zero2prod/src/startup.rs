@@ -32,7 +32,7 @@ impl Application {
         let port = listener.local_addr().unwrap().port();
 
         // Setup `connection_pool`
-        let connection_pool = get_connection_pool(&config.db).await;
+        let connection_pool = get_connection_pool(&config.db);
 
         // Setup `email_client`
         let base_url = config.email_client.base_url();
@@ -67,7 +67,7 @@ impl Application {
     }
 }
 
-pub async fn get_connection_pool(db_config: &DBSettings) -> PgPool {
+pub fn get_connection_pool(db_config: &DBSettings) -> PgPool {
     PgPoolOptions::new().connect_lazy_with(db_config.connect_options())
 }
 

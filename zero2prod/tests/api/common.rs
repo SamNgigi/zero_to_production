@@ -1,13 +1,11 @@
 use secrecy::SecretString;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;
-use tokio::net::TcpListener;
 use uuid::Uuid;
 
 use zero2prod::{
     config::{DBSettings, get_config},
-    email_client::EmailClient,
-    startup as z2p,
+    startup::{Application, get_connection_pool},
 };
 
 pub struct TestApp {
@@ -32,44 +30,28 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {});
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
 
-    // setup `listener`
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind to random port");
-
-    // Extract port and build app address
-    let port = listener.local_addr().unwrap().port();
-    let address = format!("http://127.0.0.1:{}", port);
-
     // get config
-    let mut config = get_config().expect("Failed to read configuration");
+    let configuration = {
+        let mut config = get_config().expect("Failed to read configuration");
+        config.db.db_name = format!("newsletter_axum_test_db_{}", Uuid::now_v7());
+        config.app.port = 0;
+        config
+    };
 
-    // setup `connection_pool`
-    config.db.db_name = format!("newsletter_axum_test_db_{}", Uuid::now_v7());
-    let connection_pool = configure_db(&config.db).await;
-    let connection_pool_clone = connection_pool.clone();
+    configure_db(&configuration.db).await;
 
-    // setup `email_client`
-    let base_url = config.email_client.base_url();
-    let sender_email = config
-        .email_client
-        .sender()
-        .expect("Invalid sender email address");
-    let timeout = config.email_client.timeout();
-    let email_client = EmailClient::new(
-        base_url,
-        sender_email,
-        config.email_client.authorization_token,
-        timeout,
-    );
+    let app = Application::build(configuration.clone())
+        .await
+        .expect("Failed to build application in test");
 
+    let address = format!("http://127.0.0.1:{}", app.port());
     // run app in a tokio asynchronous task
-    tokio::spawn(async move { z2p::run(listener, connection_pool_clone, email_client).await });
+    tokio::spawn(app.run_until_stopped());
 
     // return TestApp
     TestApp {
         address,
-        db_pool: connection_pool,
+        db_pool: get_connection_pool(&configuration.db),
     }
 }
 
