@@ -1,15 +1,19 @@
 # TODOS
 
-### Skeleton And Principles For A Maintainable Test Suite 
+### Database Migrations
 
 Want to implement everything from memory as best as I can<br>
+
 Here's a high-level TODO of the tasks that need to be completed
-- [x] Create `api` submodule in tests with;
-    - [x] `main.rs, helpers.rs, health_check.rs, subscriptions.rs` files
-    - [x] breakdown original `health_check.rs` into the relevant files. Move or Delete original
-    - [x] Run tests to ensure everything is working as before
-- [x] Refactor `src/main.rs` config setup and `run` into a `build` function
-- [x] Refactor `tests/api/helpers.rs`'s `spawn_app` to make use of `build` for config setup and running the app
-    - [x] Refactor `connection_pool`/`db_pool` creation to separate `get_connection_pool`
-    - [x] Add `Application` struct to implementation to be able to return `port` and `server` after app is built.
-- [x] Refactor subscriptions test to extract out duplicate client request code into its own `TestApp::post_subscriptions()` method
+- [ ] Add `status` column to `subscriptions` table
+    - [ ] Generate migration file
+    - [ ] Write migration script
+    - [ ] Run migration
+    - [ ] Run tests to confirm everything still working as expected
+    - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
+- [ ] Add `subscription_tokens` table
+    - [ ] Generate migration file
+    - [ ] Write migration script
+    - [ ] Run migration
+    - [ ] Run tests to confirm everything still working as expected
+    - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
