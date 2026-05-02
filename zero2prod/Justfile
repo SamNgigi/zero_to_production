@@ -33,7 +33,7 @@ fly-pg-proxy:
   fly proxy 15432:5432 -a $REMOTE_DB_NAME
 
 fly-psql:
-  psql $REMOTE_PROXY_DB_STRING
+  psql $REMOTE_PROXY_DB_URL
 
 fly-migrate:
   DATABASE_URL=$REMOTE_PROXY_DB_URL sqlx migrate
