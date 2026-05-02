@@ -1,23 +1,39 @@
 set dotenv-load := true
 
-# Integration Tests
 itg-test target="*":
   cargo test --test '{{target}}'
 
 gdiff:
   git diff -- . ':(exclude)Cargo.lock'
 
-# NOTE: Docker related commands for local dev
-doc-dbshell db_container_name="postgres_1775808087" db_name="newsletter":
+# NOTE: Docker commands
+doc-dbshell db_container_name="newsletter_axum_postgres" db_name="newsletter":
   docker exec -it {{db_container_name}} psql -U postgres -d {{db_name}}
 
-
-# NOTE: Fly.io related commands
+# NOTE: Fly.io commands
 fly-ssh:
   fly ssh console
+
+# TODO: fly-app-scale2zero:
+
+fly-web-start:
+  fly machine start -a $REMOTE_APP_NAME
+
+fly-web-suspend:
+  fly machine suspend -a $REMOTE_APP_NAME
+
+
+fly-db-start:
+  fly machine start -a $REMOTE_DB_NAME
+
+fly-db-suspend:
+  fly machine suspend -a $REMOTE_DB_NAME
 
 fly-pg-proxy:
   fly proxy 15432:5432 -a $REMOTE_DB_NAME
 
-fly-pg-migrate:
-  DATABASE_URL=$REMOTE_DB_URL sqlx migrate
+fly-psql:
+  psql $REMOTE_PROXY_DB_URL
+
+fly-migrate:
+  DATABASE_URL=$REMOTE_PROXY_DB_URL sqlx migrate
