@@ -11,6 +11,9 @@ Here's a high-level TODO of the tasks that need to be completed
     - [ ] Run migration
     - [ ] Run tests to confirm everything still working as expected
     - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
+- [ ] Update `src/routes/subscriptions.rs` `insert_subcriber` with default `status`
+    - [ ] Run tests
+    - [ ] Deploy updated application.
 - [ ] Backfill `status` column with default value "confirmed".
     - [ ] Generate migration file
     - [ ] Write migration script (_mark as `NOT NULL`_)
