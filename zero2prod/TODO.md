@@ -20,9 +20,9 @@ Here's a high-level TODO of the tasks that need to be completed
     - [x] Run migration
     - [x] Run tests to confirm everything still working as expected
     - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
-- [ ] Add `subscription_tokens` table
-    - [ ] Generate migration file
-    - [ ] Write migration script
-    - [ ] Run migration
-    - [ ] Run tests to confirm everything still working as expected
+- [x] Add `subscription_tokens` table
+    - [x] Generate migration file
+    - [x] Write migration script
+    - [x] Run migration
+    - [x] Run tests to confirm everything still working as expected
     - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
