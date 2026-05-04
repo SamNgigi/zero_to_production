@@ -1,0 +1,5 @@
+# NOTE: This tells Git to always check out `.sql` files
+# with Unix line endings regardless of the local `autocrlf`
+# settings so that our migration files stay byte stable
+# across machines
+*.sql text eol=lf
