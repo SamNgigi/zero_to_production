@@ -14,12 +14,12 @@ Here's a high-level TODO of the tasks that need to be completed
 - [x] Update `src/routes/subscriptions.rs` `insert_subcriber` with default `status`
     - [x] Run tests
     - [x] Deploy updated application.
-- [ ] Backfill `status` column with default value "confirmed".
-    - [ ] Generate migration file
-    - [ ] Write migration script (_mark as `NOT NULL`_)
-    - [ ] Run migration
-    - [ ] Run tests to confirm everything still working as expected
-    - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
+- [x] Backfill `status` column with default value "confirmed".
+    - [x] Generate migration file
+    - [x] Write migration script (_mark as `NOT NULL`_)
+    - [x] Run migration
+    - [x] Run tests to confirm everything still working as expected
+    - [x] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
 - [ ] Add `subscription_tokens` table
     - [ ] Generate migration file
     - [ ] Write migration script

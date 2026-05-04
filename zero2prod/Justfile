@@ -29,12 +29,12 @@ fly-db-start:
 fly-db-suspend:
   fly machine suspend -a $REMOTE_DB_NAME
 
-fly-pg-proxy:
+fly-db-proxy:
   fly proxy 15432:5432 -a $REMOTE_DB_NAME
 
 fly-psql:
   psql $REMOTE_PROXY_DB_URL
 
 fly-migrate:
-  DATABASE_URL=$REMOTE_PROXY_DB_URL sqlx migrate
+  DATABASE_URL=$REMOTE_PROXY_DB_URL sqlx migrate run
 
