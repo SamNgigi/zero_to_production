@@ -1,7 +1,8 @@
 # --------------------------------------------------------------
 # INFO: Stage 1 - Computing the recipe file (dependencies)
 # --------------------------------------------------------------
-FROM lukemathwalker/cargo-chef:latest-rust-1.94 AS chef
+# NOTE: Pinning the os base to bookworm for chef and rutime to avoid conflicts
+FROM lukemathwalker/cargo-chef:latest-rust-1.94-bookworm AS chef
 WORKDIR /app
 RUN apt update && apt install lld clang -y
 
