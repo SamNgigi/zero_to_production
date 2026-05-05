@@ -1,28 +1,67 @@
 # TODOS
 
-### Database Migrations
+### Sending A Confirmation Email & Database Transactions.
 
 Want to implement everything from memory as best as I can<br>
 
-Here's a high-level TODO of the tasks that need to be completed
-- [x] Add `status` column to `subscriptions` table
-    - [x] Generate migration file
-    - [x] Write migration script (_allowing null initially_)
-    - [x] Run migration
-    - [x] Run tests to confirm everything still working as expected
-    - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
-- [x] Update `src/routes/subscriptions.rs` `insert_subcriber` with default `status`
-    - [x] Run tests
-    - [x] Deploy updated application.
-- [x] Backfill `status` column with default value "confirmed".
-    - [x] Generate migration file
-    - [x] Write migration script (_mark as `NOT NULL`_)
-    - [x] Run migration
-    - [x] Run tests to confirm everything still working as expected
-    - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
-- [x] Add `subscription_tokens` table
-    - [x] Generate migration file
-    - [x] Write migration script
-    - [x] Run migration
-    - [x] Run tests to confirm everything still working as expected
-    - [ ] Run migration on production db (_Can only be done in axum branch because of the `fly.toml` filed required_)
+- [ ] `POST /subscription` sends static email
+    - [ ] Red Test
+        - [ ] Add `email_server` to `TestApp` and update `spawn_app` to configure it
+        - [ ] Add `subscribe_sends_confirmation_email_for_valid_data()` test
+        - [ ] Updates notes with screenshot of failed test
+        - [ ] Commit & Push
+    - [ ] Green Test
+        - [ ] Update `subscribe` with `email_client` so as to extract it to call `email_client.send_email()`
+        - [ ] Update notes with screenshot of failure of `subscribe_returns_200_for_valid_form_data()` test
+        - [ ] Update failing test with mock response from server
+        - [ ] If all tests pass commit and push
+- [ ] `POST /subscriptions` sends email with static confirmation link
+    - [ ] Red Test
+        - [ ] Add `subscribe_sends_confirmation_email_with_link()` test.
+        - [ ] Updates notes with screenshot of failed test.
+    - [ ] Green Test
+        - [ ] Update `subscribe` `email_client.send_email` with static placeholder confirmation link for html & plain text bodies.
+    - [ ] Refactor
+        - [ ] Extract out `send_email` call from `subscribe` to separate `send_confirmation_email`
+- [ ] `POST /subscriptions` new subscriber `status` should be `pending_confirmation`
+    - [ ] Red Test
+        - [ ] Split original `subscribe_returns_200_for_valid_form_data` test into two extracting out test case for db assertions.
+            - [ ] Add `subscribe_persists_the_new_subscriber` and add assertion for checking `status` is `pending_confirmation`.
+        - [ ] Update notes with screenshot of failing test
+    - [ ] Green Test
+        - [ ] Update `insert_subscriber` with appropriate `pending_confirmation` for a `new_subscriber`.
+- [ ] Add `GET /subscriptions/confirm` handler
+    - [ ] Red Test
+        - [ ] Add new module `subscriptions_confirm` module to `tests/api/` crate.
+        - [ ] Add `confirmation_without_token_are_rejected_with_a_404` test
+        - [ ] Update notes with screenshot of failing test
+    - [ ] Green Test
+        - [ ] Add module `src/routes/subscriptions_confirm`. Update relevant `mod.rs`
+        - [ ] Add dummy `confirm` handler that returns `200 OK` regardless of request
+        - [ ] Update notes with screenshots of failing test
+        - [ ] Update `confirm` to take in a `web::Query<Parameters>` to return make failing test to pass.
+- [ ] Clicking expected confirmation link returns `200 OK`
+    - [ ] Red Test
+        - [ ] Add `link_returned_by_subscribe_returns_200_if_called` test
+        - [ ] Update notes with screenshot of failing test.
+    - [ ] Green Test
+        - [ ] Update `confirmation_link` to have configurable domain & port
+            - [ ] Might need to update `fly.toml` with deployed app url on axum branch
+            - [ ] Update `src/config.rs`, `configuration/base.yaml`, `src/startup.rs` `run` 
+            - [ ] Extract `base_url` from `subscribe` and pass to `send_confirmation_email`
+            - [ ] Update notes with failing test screenshot
+            - [ ] Update `TestApp` with `port` field neccessary to construct `confirmation_link` for testing
+            - [ ] Update notes with failing test screenshot
+            - [ ] Update `send_confirmation_email` `confirmation_link` with dummy token for test to pass
+    - [ ] Refactor Test
+        - [ ] Extract out capturing `confirmation_link` logic from test requests into separate `get_confirmation_links` function
+        - [ ] Refactor relevant tests using `get_confirmation_links`
+- [ ] Generate actual expected `subscription_token` and confirm new subscriber on link click
+   - [ ] Red Test
+        - [ ] Add `clicking_on_confirmation_link_confirms_subscriber` test
+        - [ ] Update notes with screenshoot of failing test.
+   - [ ] Green Test
+        - [ ] Update `send_confirmation_email` to accept `subscription_token` parameter
+        - [ ] Implement `generate_subscription_token` and add call to `subscribe`
+        - [ ] Implement `store_token` and add call to `subscribe`
+- [ ] Make `insert_subscriber` and `store_token` one atomic db transaction updating them to execute on `transaction` instead of pool
