@@ -6,6 +6,43 @@ use wiremock::{
 use crate::helpers::spawn_app;
 
 #[tokio::test]
+async fn subscribe_sends_confirmation_email_with_confirmation_link() {
+    // NOTE: ARRANGE
+    let app = spawn_app().await;
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    // NOTE: ACT
+    app.post_subscriptions(body.into()).await;
+
+    // Interception the first request received by our mock email server
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    // Parse the request body into JSON
+    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+    // Define a closure fn that extracts links given a str using linkify crate
+    let get_links = |s: &str| {
+        let links: Vec<_> = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect();
+        assert_eq!(links.len(), 1);
+        links[0].as_str().to_owned()
+    };
+
+    let html_body = get_links(body["HtmlBody"].as_str().unwrap());
+    let text_body = get_links(body["TextBody"].as_str().unwrap());
+
+    // NOTE: ASSERT
+    assert_eq!(html_body, text_body);
+}
+
+#[tokio::test]
 async fn subscribe_sends_confirmation_email_for_valid_data() {
     // Arrange
     let app = spawn_app().await;
