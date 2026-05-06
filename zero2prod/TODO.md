@@ -33,7 +33,7 @@ Want to implement everything from memory as best as I can<br>
 - [ ] Add `GET /subscriptions/confirm` handler
     - [ ] Red Test
         - [ ] Add new module `subscriptions_confirm` module to `tests/api/` crate.
-        - [ ] Add `confirmation_without_token_are_rejected_with_a_404` test
+        - [ ] Add `confirmation_without_token_is_rejected_with_a_404` test
         - [ ] Update notes with screenshot of failing test
     - [ ] Green Test
         - [ ] Add module `src/routes/subscriptions_confirm`. Update relevant `mod.rs`
