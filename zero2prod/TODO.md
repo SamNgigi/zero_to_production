@@ -4,17 +4,17 @@
 
 Want to implement everything from memory as best as I can<br>
 
-- [ ] `POST /subscription` sends static email
-    - [ ] Red Test
-        - [ ] Add `email_server` to `TestApp` and update `spawn_app` to configure it
-        - [ ] Add `subscribe_sends_confirmation_email_for_valid_data()` test
-        - [ ] Updates notes with screenshot of failed test
-        - [ ] Commit & Push
-    - [ ] Green Test
-        - [ ] Update `subscribe` with `email_client` so as to extract it to call `email_client.send_email()`
-        - [ ] Update notes with screenshot of failure of `subscribe_returns_200_for_valid_form_data()` test
-        - [ ] Update failing test with mock response from server
-        - [ ] If all tests pass commit and push
+- [x] `POST /subscription` sends static email
+    - [x] Red Test
+        - [x] Add `email_server` to `TestApp` and update `spawn_app` to configure it
+        - [x] Add `subscribe_sends_confirmation_email_for_valid_data()` test
+        - [x] Updates notes with screenshot of failed test
+        - [x] Commit & Push
+    - [x] Green Test
+        - [x] Update `subscribe` with `email_client` so as to extract it to call `email_client.send_email()`
+        - [x] Update notes with screenshot of failure of `subscribe_returns_200_for_valid_form_data()` test
+        - [x] Update failing test with mock response from server
+        - [x] If all tests pass commit and push
 - [ ] `POST /subscriptions` sends email with static confirmation link
     - [ ] Red Test
         - [ ] Add `subscribe_sends_confirmation_email_with_link()` test.
