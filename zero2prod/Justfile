@@ -1,7 +1,7 @@
 set dotenv-load := true
 
-itg-test target="*":
-  cargo test --test '{{target}}'
+itest target="*" fn="":
+  cargo test --test '{{target}}' -- {{fn}}
 
 gdiff:
   git diff -- . ':(exclude)Cargo.lock'
