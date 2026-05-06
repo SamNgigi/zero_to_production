@@ -81,7 +81,18 @@ async fn subscribe_returns_200_for_valid_form_data() {
 
     // Act
     let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    // Adding Mock call to email server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    // NOTE: We add the mock before posting subscriptions so that
+    // a post finds our mock email_server already wired up.
     let response = app.post_subscriptions(body.into()).await;
+
     // Assert
     assert_eq!(200, response.status().as_u16());
 
