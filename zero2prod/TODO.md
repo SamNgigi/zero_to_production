@@ -15,14 +15,14 @@ Want to implement everything from memory as best as I can<br>
         - [x] Update notes with screenshot of failure of `subscribe_returns_200_for_valid_form_data()` test
         - [x] Update failing test with mock response from server
         - [x] If all tests pass commit and push
-- [ ] `POST /subscriptions` sends email with static confirmation link
-    - [ ] Red Test
-        - [ ] Add `subscribe_sends_confirmation_email_with_link()` test.
-        - [ ] Updates notes with screenshot of failed test.
-    - [ ] Green Test
-        - [ ] Update `subscribe` `email_client.send_email` with static placeholder confirmation link for html & plain text bodies.
-    - [ ] Refactor
-        - [ ] Extract out `send_email` call from `subscribe` to separate `send_confirmation_email`
+- [x] `POST /subscriptions` sends email with static confirmation link
+    - [x] Red Test
+        - [x] Add `subscribe_sends_confirmation_email_with_link()` test.
+        - [x] Updates notes with screenshot of failed test.
+    - [x] Green Test
+        - [x] Update `subscribe` `email_client.send_email` with static placeholder confirmation link for html & plain text bodies.
+    - [x] Refactor
+        - [x] Extract out `send_email` call from `subscribe` to separate `send_confirmation_email`
 - [ ] `POST /subscriptions` new subscriber `status` should be `pending_confirmation`
     - [ ] Red Test
         - [ ] Split original `subscribe_returns_200_for_valid_form_data` test into two extracting out test case for db assertions.
