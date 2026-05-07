@@ -134,11 +134,12 @@ async fn subscribe_returns_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     // Act
-    let saved = sqlx::query!("SELECT email, username FROM subscriptions;")
+    let saved = sqlx::query!("SELECT email, username, status FROM subscriptions;")
         .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch saved request");
     // Assert
     assert_eq!(saved.email, "lei_yin_loo@gmail.com");
     assert_eq!(saved.username, "lei yin");
+    assert_eq!(saved.status, "pending_confirmation");
 }
