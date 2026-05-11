@@ -31,7 +31,7 @@ impl Application {
         let listener = TcpListener::bind(format!("{}:{}", config.app.host, config.app.port))
             .unwrap_or_else(|_| panic!("Failed to bind to port {}", config.app.port));
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, db_pool, email_client)?;
+        let server = run(listener, db_pool, email_client, config.app.base_url)?;
 
         Ok(Self { port, server })
     }
@@ -51,16 +51,20 @@ pub fn get_connection_pool(db_config: &DBSettings) -> PgPool {
     PgPoolOptions::new().connect_lazy_with(db_config.connect_options())
 }
 
+pub struct ApplicationBaseUrl(pub String);
+
 fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient, // New param
+    base_url: String,          // New param
 ) -> Result<Server, std::io::Error> {
     // INFO: `web::Data::new` allows us to wrap the arguments provided
     // as a `Arc` type that can be shared application wide between threads
     // as opposed to a full copy.
     let db_pool = web::Data::new(db_pool);
     let email_client = web::Data::new(email_client);
+    let base_url = web::Data::new(ApplicationBaseUrl(base_url));
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
@@ -71,8 +75,10 @@ fn run(
             .route("/subscriptions/confirm", web::get().to(confirm))
             // Registering connection as part of applicaton state
             .app_data(db_pool.clone())
-            // Regeistering email client as part of application state
+            // Registering email client as part of application state
             .app_data(email_client.clone())
+            // Registering base_url as part of application state
+            .app_data(base_url.clone())
     })
     .listen(listener)?
     .run();

@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberUsername},
     email_client::EmailClient,
+    startup::ApplicationBaseUrl,
 };
 
 #[derive(serde::Deserialize)]
@@ -33,7 +34,7 @@ impl TryFrom<FormData> for NewSubscriber {
 // according to the rules and conventions of the HTTP protocol
 #[tracing::instrument(
     name="Adding a new subscriber"
-    skip(form, pool, email_client),
+    skip(form, pool, email_client, base_url),
     fields(
         subscriber_email=%form.email,
         subscriber_username=%form.username,
@@ -43,6 +44,7 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>, // Retrieving a connection from App State
     email_client: web::Data<EmailClient>,
+    base_url: web::Data<ApplicationBaseUrl>,
 ) -> HttpResponse {
     let new_subscriber = match form.0.try_into() {
         Ok(form) => form,
@@ -53,7 +55,7 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
-    if send_confirmation_email(&email_client, new_subscriber)
+    if send_confirmation_email(&email_client, new_subscriber, &base_url.0)
         .await
         .is_err()
     {
@@ -63,12 +65,19 @@ pub async fn subscribe(
     HttpResponse::Ok().finish()
 }
 
-#[tracing::instrument(name = "Send confirmation email", skip(email_client, new_subscriber))]
+#[tracing::instrument(
+    name = "Send confirmation email",
+    skip(email_client, new_subscriber, base_url)
+)]
 async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
+    base_url: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://placeholder-example-domain.com/subscriptions/confirm";
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?_subscription_token=myToken",
+        base_url
+    );
     let html_body = format!(
         "Welcome to our newsletter!<br />\
         Click <a href=\"{}\">here</a> to confirm your subscription.",
