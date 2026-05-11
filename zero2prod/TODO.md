@@ -40,22 +40,22 @@ Want to implement everything from memory as best as I can<br>
         - [x] Add dummy `confirm` handler that returns `200 OK` regardless of request
         - [x] Update notes with screenshots of failing test
         - [x] Update `confirm` to take in a `web::Query<Parameters>` to return make failing test to pass.
-- [ ] Clicking expected confirmation link returns `200 OK`
-    - [ ] Red Test
-        - [ ] Add `link_returned_by_subscribe_returns_200_if_called` test
-        - [ ] Update notes with screenshot of failing test.
-    - [ ] Green Test
-        - [ ] Update `confirmation_link` to have configurable domain & port
-            - [ ] Might need to update `fly.toml` with deployed app url on axum branch
-            - [ ] Update `src/config.rs`, `configuration/base.yaml`, `src/startup.rs` `run` 
-            - [ ] Extract `base_url` from `subscribe` and pass to `send_confirmation_email`
-            - [ ] Update notes with failing test screenshot
-            - [ ] Update `TestApp` with `port` field neccessary to construct `confirmation_link` for testing
-            - [ ] Update notes with failing test screenshot
-            - [ ] Update `send_confirmation_email` `confirmation_link` with dummy token for test to pass
-    - [ ] Refactor Test
-        - [ ] Extract out capturing `confirmation_link` logic from test requests into separate `get_confirmation_links` function
-        - [ ] Refactor relevant tests using `get_confirmation_links`
+- [x] Clicking expected confirmation link returns `200 OK`
+    - [x] Red Test
+        - [x] Add `link_returned_by_subscribe_returns_200_if_called` test
+        - [x] Update notes with screenshot of failing test.
+    - [x] Green Test
+        - [x] Update `confirmation_link` to have configurable domain & port
+            - [x] Might need to update `fly.toml` with deployed app url on axum branch
+            - [x] Update `src/config.rs`, `configuration/base.yaml`, `src/startup.rs` `run` 
+            - [x] Extract `base_url` from `subscribe` and pass to `send_confirmation_email`
+            - [x] Update notes with failing test screenshot
+            - [x] Update `TestApp` with `port` field neccessary to construct `confirmation_link` for testing
+            - [x] Update notes with failing test screenshot
+            - [x] Update `send_confirmation_email` `confirmation_link` with dummy token for test to pass
+    - [x] Refactor Test
+        - [x] Extract out capturing `confirmation_link` logic from test requests into separate `get_confirmation_links` function
+        - [x] Refactor relevant tests using `get_confirmation_links`
 - [ ] Generate actual expected `subscription_token` and confirm new subscriber on link click
    - [ ] Red Test
         - [ ] Add `clicking_on_confirmation_link_confirms_subscriber` test
