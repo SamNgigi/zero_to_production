@@ -64,4 +64,4 @@ Want to implement everything from memory as best as I can<br>
         - [x] Update `send_confirmation_email` to accept `subscription_token` parameter
         - [x] Implement `generate_subscription_token` and add call to `subscribe`
         - [x] Implement `store_token` and add call to `subscribe`
-- [ ] Make `insert_subscriber` and `store_token` one atomic db transaction updating them to execute on `transaction` instead of pool
+- [x] Make `insert_subscriber` and `store_token` one atomic db transaction updating them to execute on `transaction` instead of pool
