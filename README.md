@@ -5,6 +5,7 @@ Covering Luca Palmieri's book to understand backend web services development in 
 Here we
 - Update the original Actix-web implementation for 2026
 - Re-implement in Axum.
+- Deploy to fly.io instead of Digital Ocean as in the original Actix implementation
 
 ⚠️ Hand-written code for the purposes of learning.
 
