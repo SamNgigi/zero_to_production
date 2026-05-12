@@ -1,5 +1,31 @@
 use crate::common::spawn_app;
 
+use wiremock::{
+    Mock, ResponseTemplate,
+    matchers::{method, path},
+};
+
+#[tokio::test]
+async fn subscribe_sends_confirmation_email_for_valid_data() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // NOTE: Act
+    app.post_subscriptions(body.into()).await;
+
+    // NOTE:
+    // Assertion that we received our mock server request
+    // happens at the end of scope
+}
+
 #[tokio::test]
 async fn subscribe_returns_400_when_fields_are_present_but_invalid() {
     // Arrange

@@ -2,6 +2,7 @@ use secrecy::SecretString;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;
 use uuid::Uuid;
+use wiremock::MockServer;
 
 use zero2prod::{
     config::{DBSettings, get_config},
@@ -11,6 +12,7 @@ use zero2prod::{
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub email_server: MockServer,
 }
 
 impl TestApp {
@@ -30,11 +32,14 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {});
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
 
+    let email_server = MockServer::start().await;
+
     // get config
     let configuration = {
         let mut config = get_config().expect("Failed to read configuration");
         config.db.db_name = format!("newsletter_axum_test_db_{}", Uuid::now_v7());
         config.app.port = 0;
+        config.email_client.base_url_str = email_server.uri();
         config
     };
 
@@ -52,6 +57,7 @@ pub async fn spawn_app() -> TestApp {
     TestApp {
         address,
         db_pool: get_connection_pool(&configuration.db),
+        email_server,
     }
 }
 
