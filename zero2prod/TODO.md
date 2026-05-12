@@ -65,3 +65,5 @@ Want to implement everything from memory as best as I can<br>
         - [x] Implement `generate_subscription_token` and add call to `subscribe`
         - [x] Implement `store_token` and add call to `subscribe`
 - [x] Make `insert_subscriber` and `store_token` one atomic db transaction updating them to execute on `transaction` instead of pool
+
+Complete Actix implementation for Chapter 7. **Reject Invalid Subscriber #2** Done ✅.
