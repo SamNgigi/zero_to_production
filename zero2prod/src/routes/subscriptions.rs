@@ -1,9 +1,8 @@
 use actix_web::{HttpResponse, web};
 use rand::{RngExt, distr::Alphanumeric};
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 
 use chrono::Utc;
-// use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 use crate::{
@@ -52,14 +51,20 @@ pub async fn subscribe(
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    let subscriber_id = match insert_subscriber(&pool, &new_subscriber).await {
-        Ok(subscriber_id) => subscriber_id,
+    // Instantiating a transaction so that we can make `insert_subscriber` and
+    // `store_token` and atomic transaction where both succeed or both fail.
+    let mut transaction = match pool.begin().await {
+        Ok(transaction) => transaction,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
+    let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
+        Ok(subscriber_id) => subscriber_id,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
     let subscription_token = generate_subscription_token();
 
-    if store_token(&pool, &subscription_token, subscriber_id)
+    if store_token(&mut transaction, &subscription_token, subscriber_id)
         .await
         .is_err()
     {
@@ -78,26 +83,43 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
+    if transaction.commit().await.is_err() {
+        return HttpResponse::InternalServerError().finish();
+    }
+
     HttpResponse::Ok().finish()
 }
 
-async fn store_token(
-    db_pool: &PgPool,
-    subscription_token: &str,
-    subscriber_id: Uuid,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
+// INFO: `insert_subscriber` takes care of the database logic and it has no awareness of
+// the surrounding web framework. Easily portable.
+#[tracing::instrument(
+    name = "Saving new subscriber details in the database",
+    skip(new_subscriber, transaction)
+)]
+pub async fn insert_subscriber(
+    transaction: &mut Transaction<'_, Postgres>,
+    new_subscriber: &NewSubscriber,
+) -> Result<Uuid, sqlx::Error> {
+    let subscriber_id = Uuid::now_v7();
+    let query = sqlx::query!(
         r#"
-            INSERT INTO subscription_tokens (subscription_token, subscriber_id)
-            VALUES ($1, $2)
+            INSERT INTO subscriptions (id, email, username, subscribed_at, status)
+            VALUES ($1, $2, $3, $4, 'pending_confirmation')
         "#,
-        subscription_token,
         subscriber_id,
-    )
-    .execute(db_pool)
-    .await
-    .expect("Failed to execute store_token insertion query");
-    Ok(())
+        new_subscriber.email.as_ref(),
+        new_subscriber.username.as_ref(),
+        Utc::now(),
+    );
+
+    transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        e
+        // INFO: Using the `?` operator to return early
+        // if the function failed, returning a sqlx::Error
+        // We will talk about error handling in depth later.
+    })?;
+    Ok(subscriber_id)
 }
 
 fn generate_subscription_token() -> String {
@@ -105,6 +127,27 @@ fn generate_subscription_token() -> String {
         .map(char::from)
         .take(25)
         .collect()
+}
+async fn store_token(
+    transaction: &mut Transaction<'_, Postgres>,
+    subscription_token: &str,
+    subscriber_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    let query = sqlx::query!(
+        r#"
+            INSERT INTO subscription_tokens (subscription_token, subscriber_id)
+            VALUES ($1, $2)
+        "#,
+        subscription_token,
+        subscriber_id,
+    );
+
+    transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute store_token query: {:?}", e);
+        e
+    })?;
+
+    Ok(())
 }
 
 #[tracing::instrument(
@@ -133,37 +176,4 @@ async fn send_confirmation_email(
     email_client
         .send_email(new_subscriber.email, "Welcome!", &html_body, &text_body)
         .await
-}
-
-// INFO: `insert_subscriber` takes care of the database logic and it has no awareness of
-// the surrounding web framework. Easily portable.
-#[tracing::instrument(
-    name = "Saving new subscriber details in the database",
-    skip(new_subscriber, pool)
-)]
-pub async fn insert_subscriber(
-    pool: &PgPool,
-    new_subscriber: &NewSubscriber,
-) -> Result<Uuid, sqlx::Error> {
-    let subscriber_id = Uuid::now_v7();
-    sqlx::query!(
-        r#"
-            INSERT INTO subscriptions (id, email, username, subscribed_at, status)
-            VALUES ($1, $2, $3, $4, 'pending_confirmation')
-        "#,
-        subscriber_id,
-        new_subscriber.email.as_ref(),
-        new_subscriber.username.as_ref(),
-        Utc::now(),
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        e
-        // INFO: Using the `?` operator to return early
-        // if the function failed, returning a sqlx::Error
-        // We will talk about error handling in depth later.
-    })?;
-    Ok(subscriber_id)
 }
