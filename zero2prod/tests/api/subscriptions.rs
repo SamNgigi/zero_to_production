@@ -6,6 +6,33 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn subscribe_persists_new_subscriber_with_pending_confirmation_status() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(body.into()).await;
+
+    // NOTE: Arrange
+
+    let saved = sqlx::query!("SELECT email, username, status FROM subscriptions",)
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("Failed to execute select subscriber query in test");
+
+    // NOTE: Arrange
+    assert_eq!(saved.email, "lei_yin_loo@gmail.com");
+    assert_eq!(saved.username, "lei yin");
+    assert_eq!(saved.status, "pending_confirmation");
+}
+
+#[tokio::test]
 async fn subscribe_sends_confirmation_email_with_confirmation_link() {
     // NOTE: Arrange
     let app = spawn_app().await;
@@ -133,14 +160,4 @@ async fn subscribe_returns_200_for_valid_form_data() {
     let response = app.post_subscriptions(body.to_string()).await;
     // Assert
     assert_eq!(200, response.status().as_u16());
-
-    // Act
-    let result = sqlx::query!("SELECT username, email FROM subscriptions;")
-        .fetch_one(&app.db_pool)
-        .await
-        .expect("Failed to execute db query in test");
-
-    // Assert
-    assert_eq!(result.username, "lei yin");
-    assert_eq!(result.email, "lei_yin_loo@gmail.com");
 }
