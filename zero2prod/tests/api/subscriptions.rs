@@ -84,6 +84,13 @@ async fn subscribe_returns_200_for_valid_form_data() {
     // Arrange
     let app = spawn_app().await;
     let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
     // Act
     let response = app.post_subscriptions(body.to_string()).await;
     // Assert

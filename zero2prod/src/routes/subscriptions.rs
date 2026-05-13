@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberUsername},
+    email_client::EmailClient,
     startup::AppState,
 };
 
@@ -47,10 +48,29 @@ pub async fn subscribe(
         Err(_) => return StatusCode::BAD_REQUEST,
     };
 
-    match insert_subscriber(&state.db_pool, &new_subscriber).await {
-        Ok(_) => StatusCode::OK,
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    if insert_subscriber(&state.db_pool, &new_subscriber)
+        .await
+        .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR;
     }
+
+    let base_url = "http://placeholder-domain.com";
+    let subscription_token = "placeholder_token";
+
+    if send_confirmation_email(
+        &state.email_client,
+        new_subscriber,
+        base_url,
+        subscription_token,
+    )
+    .await
+    .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
+    StatusCode::OK
 }
 
 /* INFO:
@@ -87,6 +107,42 @@ async fn insert_subscriber(
          * We will talk about error handling in depth later!
          * */
     })?;
+
+    Ok(())
+}
+
+// INFO: Wrapper for sending a confirmation email
+#[tracing::instrument(
+    name = "Send new subscriber confirmation email",
+    skip(email_client, new_subscriber, base_url, subscription_token)
+)]
+async fn send_confirmation_email(
+    email_client: &EmailClient,
+    new_subscriber: NewSubscriber,
+    base_url: &str,
+    subscription_token: &str,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = format!("{}/subscriptions/confirm/{}", base_url, subscription_token,);
+
+    let html_content = format!(
+        "Welcome to our newsletter!<br />\
+        Click <a href=\"{}\">here</a> to confirm your subscription.",
+        confirmation_link
+    );
+
+    let txt_content = format!(
+        "Welcome to our newsletter! Visit {} to confirm your subscription.",
+        confirmation_link
+    );
+
+    email_client
+        .send_email(
+            new_subscriber.email,
+            "Welcome!",
+            &html_content,
+            &txt_content,
+        )
+        .await?;
 
     Ok(())
 }
