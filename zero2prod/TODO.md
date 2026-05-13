@@ -20,7 +20,7 @@ Want to implement everything from memory as best as I can<br>
     - [ ] Green Test
         - [ ] Update `subscribe` `email_client.send_email` with static placeholder confirmation link for html & plain text bodies.
     - [ ] Refactor
-        - [ ] Extract out `send_email` call from `subscribe` to separate `send_confirmation_email`
+        - [x] Extract out `send_email` call from `subscribe` to separate `send_confirmation_email`
 - [ ] `POST /subscriptions` new subscriber `status` should be `pending_confirmation`
     - [ ] Red Test
         - [ ] Split original `subscribe_returns_200_for_valid_form_data` test into two extracting out test case for db assertions.

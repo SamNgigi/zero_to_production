@@ -6,6 +6,44 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn subscribe_sends_confirmation_email_with_confirmation_link() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(body.into()).await;
+
+    // NOTE: Act
+    // Intercepts the first request received by our mock email server
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    // Parse the request body to JSON
+    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+    // We define a closure/fn that extracts links from a string
+    let get_link = |s: &str| {
+        let links: Vec<_> = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect();
+        assert_eq!(links.len(), 1); // Confirmation email should only have one link
+        links[0].as_str().to_owned()
+    };
+
+    // Extracting link from body
+    let html_link = get_link(body["HtmlBody"].as_str().unwrap());
+    let txt_link = get_link(body["TextBody"].as_str().unwrap());
+
+    // NOTE: Assert
+    assert_eq!(html_link, txt_link);
+}
+
+#[tokio::test]
 async fn subscribe_sends_confirmation_email_for_valid_data() {
     // NOTE: Arrange
     let app = spawn_app().await;
