@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use crate::{
     config::{DBSettings, Settings},
     email_client::EmailClient,
-    routes::{greet, health_check, subscribe},
+    routes::{confirm, greet, health_check, subscribe},
 };
 
 use axum::{
@@ -109,6 +109,7 @@ fn build_router(db_pool: PgPool, email_client: EmailClient) -> Router {
         .route("/subscriptions", post(subscribe))
         .route("/", get(greet))
         .route("/{name}", get(greet))
+        .route("/subscriptions/confirm", get(confirm))
         .layer(tracing_layer)
         .with_state(state)
 }
