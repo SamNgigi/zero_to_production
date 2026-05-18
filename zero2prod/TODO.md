@@ -21,12 +21,12 @@ Want to implement everything from memory as best as I can<br>
         - [x] Update `subscribe` `email_client.send_email` with static placeholder confirmation link for html & plain text bodies.
     - [x] Refactor
         - [x] Extract out `send_email` call from `subscribe` to separate `send_confirmation_email`
-- [ ] `POST /subscriptions` new subscriber `status` should be `pending_confirmation`
-    - [ ] Red Test
-        - [ ] Split original `subscribe_returns_200_for_valid_form_data` test into two extracting out test case for db assertions.
-            - [ ] Add `subscribe_persists_the_new_subscriber` and add assertion for checking `status` is `pending_confirmation`.
-    - [ ] Green Test
-        - [ ] Update `insert_subscriber` with appropriate `pending_confirmation` for a `new_subscriber`.
+- [x] `POST /subscriptions` new subscriber `status` should be `pending_confirmation`
+    - [x] Red Test
+        - [x] Split original `subscribe_returns_200_for_valid_form_data` test into two extracting out test case for db assertions.
+            - [x] Add `subscribe_persists_the_new_subscriber` and add assertion for checking `status` is `pending_confirmation`.
+    - [x] Green Test
+        - [x] Update `insert_subscriber` with appropriate `pending_confirmation` for a `new_subscriber`.
 - [ ] Add `GET /subscriptions/confirm` handler
     - [ ] Red Test
         - [ ] Add new module `subscriptions_confirm` module to `tests/api/` crate.
