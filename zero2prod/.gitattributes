@@ -3,3 +3,5 @@
 # settings so that our migration files stay byte stable
 # across machines
 *.sql text eol=lf
+# NOTE: Set Unix line endings globally
+* text=auto eol=lf
