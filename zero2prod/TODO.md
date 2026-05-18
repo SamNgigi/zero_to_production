@@ -27,14 +27,14 @@ Want to implement everything from memory as best as I can<br>
             - [x] Add `subscribe_persists_the_new_subscriber` and add assertion for checking `status` is `pending_confirmation`.
     - [x] Green Test
         - [x] Update `insert_subscriber` with appropriate `pending_confirmation` for a `new_subscriber`.
-- [ ] Add `GET /subscriptions/confirm` handler
-    - [ ] Red Test
-        - [ ] Add new module `subscriptions_confirm` module to `tests/api/` crate.
-        - [ ] Add `confirmation_without_token_is_rejected_with_a_404` test
-    - [ ] Green Test
-        - [ ] Add module `src/routes/subscriptions_confirm`. Update relevant `mod.rs`
-        - [ ] Add dummy `confirm` handler that returns `200 OK` regardless of request
-        - [ ] Update `confirm` to take in a `web::Query<Parameters>` to return make failing test to pass.
+- [x] Add `GET /subscriptions/confirm` handler
+    - [x] Red Test
+        - [x] Add new module `subscriptions_confirm` module to `tests/api/` crate.
+        - [x] Add `confirmation_without_token_is_rejected_with_a_404` test
+    - [x] Green Test
+        - [x] Add module `src/routes/subscriptions_confirm`. Update relevant `mod.rs`
+        - [x] Add dummy `confirm` handler that returns `200 OK` regardless of request
+        - [x] Update `confirm` to take in a `web::Query<Parameters>` to return make failing test to pass.
 - [ ] Clicking expected confirmation link returns `200 OK`
     - [ ] Red Test
         - [ ] Add `link_returned_by_subscribe_returns_200_if_called` test
