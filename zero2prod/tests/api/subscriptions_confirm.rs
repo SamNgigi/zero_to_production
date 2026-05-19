@@ -6,6 +6,38 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn clicking_confirmation_link_confirms_subscriber() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(body.into()).await;
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    let confirmation_link = app.get_confirmation_links(email_request);
+
+    // NOTE: Act
+    reqwest::get(confirmation_link.html)
+        .await
+        .expect("Failed to execute confirmation_link request in test");
+
+    let saved = sqlx::query!("SELECT email, username, status FROM subscriptions",)
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("Failed to execute get subscription query in subscription_confirm test");
+
+    // NOTE: Assert
+    assert_eq!(saved.email, "lei_yin_loo@gmail.com");
+    assert_eq!(saved.username, "lei yin");
+    assert_eq!(saved.status, "confirmed");
+}
+
+#[tokio::test]
 async fn confirmation_link_returned_by_subscribe_returns_200_when_called() {
     // NOTE: Arrange
     let app = spawn_app().await;
@@ -26,7 +58,7 @@ async fn confirmation_link_returned_by_subscribe_returns_200_when_called() {
     // NOTE: Act
     let response = reqwest::get(confirmation_links.html)
         .await
-        .expect("Failed to execute confirmation_link request");
+        .expect("Failed to execute confirmation_link request in test");
     dbg!(&response);
 
     // NOTE: Assert
