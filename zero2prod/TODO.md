@@ -46,9 +46,9 @@ Want to implement everything from memory as best as I can<br>
             - [x] Extract `base_url` from `subscribe` and pass to `send_confirmation_email`
             - [x] Update `TestApp` with `port` field neccessary to construct `confirmation_link` for testing
             - [x] Update `send_confirmation_email` `confirmation_link` with dummy token for test to pass
-    - [ ] Refactor Test
-        - [ ] Extract out capturing `confirmation_link` logic from test requests into separate `get_confirmation_links` function
-        - [ ] Refactor relevant tests using `get_confirmation_links`
+    - [x] Refactor Test
+        - [x] Extract out capturing `confirmation_link` logic from test requests into separate `get_confirmation_links` function
+        - [x] Refactor relevant tests using `get_confirmation_links`
 - [ ] Generate actual expected `subscription_token` and confirm new subscriber on link click
    - [ ] Red Test
         - [ ] Add `clicking_on_confirmation_link_confirms_subscriber` test
