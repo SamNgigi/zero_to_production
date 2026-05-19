@@ -49,25 +49,10 @@ async fn subscribe_sends_confirmation_email_with_confirmation_link() {
     // NOTE: Act
     // Intercepts the first request received by our mock email server
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
-    // Parse the request body to JSON
-    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
-
-    // We define a closure/fn that extracts links from a string
-    let get_link = |s: &str| {
-        let links: Vec<_> = linkify::LinkFinder::new()
-            .links(s)
-            .filter(|l| *l.kind() == linkify::LinkKind::Url)
-            .collect();
-        assert_eq!(links.len(), 1); // Confirmation email should only have one link
-        links[0].as_str().to_owned()
-    };
-
-    // Extracting link from body
-    let html_link = get_link(body["HtmlBody"].as_str().unwrap());
-    let txt_link = get_link(body["TextBody"].as_str().unwrap());
-
+    // Get confirmation links
+    let confirmation_links = app.get_confirmation_links(email_request);
     // NOTE: Assert
-    assert_eq!(html_link, txt_link);
+    assert_eq!(confirmation_links.html, confirmation_links.text);
 }
 
 #[tokio::test]

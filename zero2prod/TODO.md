@@ -35,17 +35,17 @@ Want to implement everything from memory as best as I can<br>
         - [x] Add module `src/routes/subscriptions_confirm`. Update relevant `mod.rs`
         - [x] Add dummy `confirm` handler that returns `200 OK` regardless of request
         - [x] Update `confirm` to take in a `web::Query<Parameters>` to return make failing test to pass.
-- [ ] Clicking expected confirmation link returns `200 OK`
-    - [ ] Red Test
-        - [ ] Add `link_returned_by_subscribe_returns_200_if_called` test
-    - [ ] Green Test
-        - [ ] Update `confirmation_link` to have configurable domain & port
-            - [ ] Might need to update `fly.toml` with deployed app url on axum branch
-            - [ ] Update `src/config.rs`, `configuration/base.yaml`, `src/startup.rs` `run` 
-            - [ ] Update `fly.toml` with `APP_APPLICATION__BASE_URL` static env variable
-            - [ ] Extract `base_url` from `subscribe` and pass to `send_confirmation_email`
-            - [ ] Update `TestApp` with `port` field neccessary to construct `confirmation_link` for testing
-            - [ ] Update `send_confirmation_email` `confirmation_link` with dummy token for test to pass
+- [x] Clicking expected confirmation link returns `200 OK`
+    - [x] Red Test
+        - [x] Add `link_returned_by_subscribe_returns_200_if_called` test
+    - [x] Green Test
+        - [x] Update `confirmation_link` to have configurable domain & port
+            - [x] Might need to update `fly.toml` with deployed app url on axum branch
+            - [x] Update `src/config.rs`, `configuration/base.yaml`, `src/startup.rs` `run` 
+            - [x] Update `fly.toml` with `APP_APPLICATION__BASE_URL` static env variable
+            - [x] Extract `base_url` from `subscribe` and pass to `send_confirmation_email`
+            - [x] Update `TestApp` with `port` field neccessary to construct `confirmation_link` for testing
+            - [x] Update `send_confirmation_email` `confirmation_link` with dummy token for test to pass
     - [ ] Refactor Test
         - [ ] Extract out capturing `confirmation_link` logic from test requests into separate `get_confirmation_links` function
         - [ ] Refactor relevant tests using `get_confirmation_links`
