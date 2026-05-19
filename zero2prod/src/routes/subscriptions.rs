@@ -1,5 +1,6 @@
 use axum::{Form, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::Utc;
+use rand::{RngExt, distr::Alphanumeric};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -48,20 +49,25 @@ pub async fn subscribe(
         Err(_) => return StatusCode::BAD_REQUEST,
     };
 
-    if insert_subscriber(&state.db_pool, &new_subscriber)
+    let subscriber_id = match insert_subscriber(&state.db_pool, &new_subscriber).await {
+        Ok(subscriber_id) => subscriber_id,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
+    };
+
+    let subscription_token = generate_subscription_token();
+
+    if store_subscription_token(&state.db_pool, &subscription_token, subscriber_id)
         .await
         .is_err()
     {
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 
-    let subscription_token = "placeholder_token";
-
     if send_confirmation_email(
         &state.email_client,
         new_subscriber,
         &state.base_url.0,
-        subscription_token,
+        &subscription_token,
     )
     .await
     .is_err()
@@ -84,13 +90,14 @@ pub async fn subscribe(
 async fn insert_subscriber(
     pool: &PgPool,
     new_subscriber: &NewSubscriber,
-) -> Result<(), sqlx::Error> {
+) -> Result<Uuid, sqlx::Error> {
+    let subscriber_id = Uuid::now_v7();
     sqlx::query!(
         r#"
             INSERT INTO subscriptions (id, email, username, subscribed_at, status)
             VALUES ($1, $2, $3, $4, 'pending_confirmation')
         "#,
-        Uuid::now_v7(),
+        subscriber_id,
         new_subscriber.email.as_ref(),
         new_subscriber.username.as_ref(),
         Utc::now(),
@@ -105,6 +112,40 @@ async fn insert_subscriber(
          * if the function failed, returning a sqlx::Error
          * We will talk about error handling in depth later!
          * */
+    })?;
+
+    Ok(subscriber_id)
+}
+
+fn generate_subscription_token() -> String {
+    std::iter::repeat_with(|| rand::rng().sample(Alphanumeric))
+        .map(char::from)
+        .take(25)
+        .collect()
+}
+
+#[tracing::instrument(
+    name = "Store subscription_token with new subscriber id",
+    skip(db_pool, subscription_token, subscriber_id)
+)]
+async fn store_subscription_token(
+    db_pool: &PgPool,
+    subscription_token: &str,
+    subscriber_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+            INSERT INTO subscription_tokens (subscription_token, subscriber_id)
+            VALUES ($1, $2)
+        "#,
+        subscription_token,
+        subscriber_id,
+    )
+    .execute(db_pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute store_subscription_token query: {}", e);
+        e
     })?;
 
     Ok(())
