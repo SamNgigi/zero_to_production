@@ -1,5 +1,3 @@
-# TODOS
-
 ### Axum Implementation - Sending A Confirmation Email & Database Transactions. 
 
 Want to implement everything from memory as best as I can<br>
@@ -49,12 +47,12 @@ Want to implement everything from memory as best as I can<br>
     - [x] Refactor Test
         - [x] Extract out capturing `confirmation_link` logic from test requests into separate `get_confirmation_links` function
         - [x] Refactor relevant tests using `get_confirmation_links`
-- [ ] Generate actual expected `subscription_token` and confirm new subscriber on link click
-   - [ ] Red Test
-        - [ ] Add `clicking_on_confirmation_link_confirms_subscriber` test
-   - [ ] Green Test
-        - [ ] Update `send_confirmation_email` to accept `subscription_token` parameter
-        - [ ] Implement `generate_subscription_token` and add call to `subscribe`
-        - [ ] Implement `store_token` and add call to `subscribe`
-- [ ] Make `insert_subscriber` and `store_token` one atomic db transaction updating them to execute on `transaction` instead of pool
+- [x] Generate actual expected `subscription_token` and confirm new subscriber on link click
+   - [x] Red Test
+        - [x] Add `clicking_on_confirmation_link_confirms_subscriber` test
+   - [x] Green Test
+        - [x] Update `send_confirmation_email` to accept `subscription_token` parameter
+        - [x] Implement `generate_subscription_token` and add call to `subscribe`
+        - [x] Implement `store_token` and add call to `subscribe`
+- [x] Make `insert_subscriber` and `store_token` one atomic db transaction updating them to execute on `transaction` instead of pool
 
