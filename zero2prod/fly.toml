@@ -8,6 +8,10 @@ primary_region = 'jnb'
 
 [build]
 
+[env]
+  APP_APPLICATION__BASE_URL = "https://zero2prod-axum-impl.fly.dev/"
+
+
 [http_service]
   internal_port = 8080
   force_https = true

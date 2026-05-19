@@ -105,6 +105,7 @@ pub struct AppSettings {
     #[serde_as(as = "DisplayFromStr")]
     pub port: u16,
     pub host: String,
+    pub base_url: String,
 }
 
 #[serde_as]

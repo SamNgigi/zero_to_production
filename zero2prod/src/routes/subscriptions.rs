@@ -55,13 +55,12 @@ pub async fn subscribe(
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 
-    let base_url = "http://placeholder-domain.com";
     let subscription_token = "placeholder_token";
 
     if send_confirmation_email(
         &state.email_client,
         new_subscriber,
-        base_url,
+        &state.base_url.0,
         subscription_token,
     )
     .await
@@ -122,7 +121,10 @@ async fn send_confirmation_email(
     base_url: &str,
     subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = format!("{}/subscriptions/confirm/{}", base_url, subscription_token,);
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token={}",
+        base_url, subscription_token,
+    );
 
     let html_content = format!(
         "Welcome to our newsletter!<br />\

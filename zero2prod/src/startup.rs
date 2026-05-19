@@ -48,7 +48,11 @@ impl Application {
             timeout,
         );
 
-        let router = build_router(connection_pool, email_client);
+        let router = build_router(
+            connection_pool,
+            email_client,
+            config.app.base_url,
+        );
 
         Ok(Self {
             port,
@@ -71,13 +75,20 @@ pub fn get_connection_pool(db_config: &DBSettings) -> PgPool {
     PgPoolOptions::new().connect_lazy_with(db_config.connect_options())
 }
 
+pub struct ApplicationBaseUrl(pub String);
+
 #[derive(Clone)]
 pub struct AppState {
     pub db_pool: PgPool,
     pub email_client: Arc<EmailClient>,
+    pub base_url: Arc<ApplicationBaseUrl>,
 }
 
-fn build_router(db_pool: PgPool, email_client: EmailClient) -> Router {
+fn build_router(
+    db_pool: PgPool,
+    email_client: EmailClient,
+    base_url: String,
+) ->Router {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(|request: &http::Request<_>| {
             let request_id = Uuid::now_v7();
@@ -102,6 +113,7 @@ fn build_router(db_pool: PgPool, email_client: EmailClient) -> Router {
     let state = AppState {
         db_pool,
         email_client: Arc::new(email_client),
+        base_url: Arc::new(ApplicationBaseUrl(base_url)),
     };
 
     Router::new()
