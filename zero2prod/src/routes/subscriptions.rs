@@ -173,7 +173,7 @@ async fn send_confirmation_email(
     );
 
     let html_content = format!(
-        "Welcome to our newsletter!<br />\
+        "Welcome to our newsletter!<br/>\
         Click <a href=\"{}\">here</a> to confirm your subscription.",
         confirmation_link
     );

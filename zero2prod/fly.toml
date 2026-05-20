@@ -9,7 +9,7 @@ primary_region = 'jnb'
 [build]
 
 [env]
-  APP_APPLICATION__BASE_URL = "https://zero2prod-axum-impl.fly.dev/"
+  APP_APPLICATION__BASE_URL = "https://zero2prod-axum-impl.fly.dev"
 
 
 [http_service]
