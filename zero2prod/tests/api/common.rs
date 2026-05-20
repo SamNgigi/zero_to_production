@@ -64,10 +64,11 @@ pub async fn spawn_app() -> TestApp {
 
     // get config
     let configuration = {
+        let mock_base_url = reqwest::Url::parse(&email_server.uri()).unwrap();
         let mut config = get_config().expect("Failed to read configuration");
         config.db.db_name = format!("newsletter_axum_test_db_{}", Uuid::now_v7());
-        config.app.port = 0;
-        config.email_client.base_url_str = email_server.uri();
+        config.application.port = 0;
+        config.email_client.base_url = mock_base_url;
         config
     };
 

@@ -25,7 +25,7 @@ pub struct Application {
 impl Application {
     pub async fn build(config: Settings) -> Result<Self, std::io::Error> {
         // Setup `listener` and extract `port`
-        let address = format!("{}:{}", config.app.host, config.app.port);
+        let address = format!("{}:{}", config.application.host, config.application.port);
         let listener = TokioTcpListener::bind(address)
             .await
             .expect("Failed to bind to port in build");
@@ -34,25 +34,15 @@ impl Application {
         // Setup `connection_pool`
         let connection_pool = get_connection_pool(&config.db);
 
-        // Setup `email_client`
-        let base_url = config.email_client.base_url();
-        let sender_email = config
-            .email_client
-            .sender()
-            .expect("Invalid sender email address");
         let timeout = config.email_client.timeout();
         let email_client = EmailClient::new(
-            base_url,
-            sender_email,
+            config.email_client.base_url,
+            config.email_client.sender_email,
             config.email_client.authorization_token,
             timeout,
         );
 
-        let router = build_router(
-            connection_pool,
-            email_client,
-            config.app.base_url,
-        );
+        let router = build_router(connection_pool, email_client, config.application.base_url);
 
         Ok(Self {
             port,
@@ -84,11 +74,7 @@ pub struct AppState {
     pub base_url: Arc<ApplicationBaseUrl>,
 }
 
-fn build_router(
-    db_pool: PgPool,
-    email_client: EmailClient,
-    base_url: String,
-) ->Router {
+fn build_router(db_pool: PgPool, email_client: EmailClient, base_url: String) -> Router {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(|request: &http::Request<_>| {
             let request_id = Uuid::now_v7();

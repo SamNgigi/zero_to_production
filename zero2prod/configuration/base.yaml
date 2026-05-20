@@ -1,4 +1,4 @@
-app:
+application:
   port: 8080
   base_url: "http://127.0.0.1"
 db:
@@ -10,7 +10,7 @@ db:
   max_connections: 10
   require_ssl: false
 email_client:
-  base_url_str: "http://placeholder_url.com"
+  base_url: "http://placeholder_url.com"
   sender_email: "test@gmail.com"
   authorization_token: "placeholder-token"
   timeout_milliseconds: 10000

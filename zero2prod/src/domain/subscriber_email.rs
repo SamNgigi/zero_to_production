@@ -1,15 +1,29 @@
+use std::str::FromStr;
 use validator::ValidateEmail;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubscriberEmail(String);
 
 impl SubscriberEmail {
-    pub fn parse(s: String) -> Result<Self, String> {
+    pub fn parse(s: &str) -> Result<Self, String> {
         if s.validate_email() {
-            Ok(Self(s))
+            Ok(Self(s.to_owned()))
         } else {
             Err(format!("{} is not a valid subscriber email", s))
         }
+    }
+}
+
+impl FromStr for SubscriberEmail {
+    /*
+     * INFO: Allows us to use `serde_as` parsing with an attribute macro
+     * in config
+     */
+
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
     }
 }
 
@@ -31,20 +45,17 @@ mod tests {
 
     #[test]
     fn test_empty_email_is_rejected() {
-        let email = "".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(SubscriberEmail::parse(""));
     }
 
     #[test]
     fn test_email_without_domain_is_rejected() {
-        let email = "lei_yindomain.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(SubscriberEmail::parse("lei_yindomain.com"));
     }
 
     #[test]
     fn test_email_without_subject_is_rejected() {
-        let email = "@domain.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(SubscriberEmail::parse("@domain.com"));
     }
 
     /*
@@ -80,6 +91,6 @@ mod tests {
     #[quickcheck_macros::quickcheck]
     fn valid_emails_are_parsed_successfully(valid_email: ValidateEmailFixture) -> bool {
         dbg!(&valid_email.0);
-        SubscriberEmail::parse(valid_email.0).is_ok()
+        SubscriberEmail::parse(&valid_email.0).is_ok()
     }
 }

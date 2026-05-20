@@ -9,15 +9,15 @@ use serde_with::{DisplayFromStr, serde_as};
 use crate::domain::SubscriberEmail;
 
 pub enum Environment {
-    DEVELOPMENT,
-    PRODUCTION,
+    Development,
+    Production,
 }
 
 impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Environment::DEVELOPMENT => "development",
-            Environment::PRODUCTION => "production",
+            Environment::Development => "development",
+            Environment::Production => "production",
         }
     }
 }
@@ -27,8 +27,8 @@ impl TryFrom<String> for Environment {
 
     fn try_from(val: String) -> Result<Self, Self::Error> {
         match val.to_lowercase().as_str() {
-            "development" => Ok(Self::DEVELOPMENT),
-            "production" => Ok(Self::PRODUCTION),
+            "development" => Ok(Self::Development),
+            "production" => Ok(Self::Production),
             other => Err(format!(
                 "{} is not a supported environment. \
                     Use either `development` or `production`.",
@@ -43,7 +43,7 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
     let configuration_directory = base_path.join("configuration");
 
     // Detect the running environment.
-    // Default to `local` if unspecified.
+    // Default to `development` if unspecified.
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| "development".into())
         .try_into()
@@ -73,27 +73,22 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Settings {
     pub db: DBSettings,
-    pub app: AppSettings,
+    pub application: AppSettings,
     pub email_client: EmailClientSettings,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct EmailClientSettings {
-    pub base_url_str: String,
-    pub sender_email: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub base_url: reqwest::Url,
+    #[serde_as(as = "DisplayFromStr")]
+    pub sender_email: SubscriberEmail,
     pub authorization_token: SecretString,
     pub timeout_milliseconds: u64,
 }
 
 impl EmailClientSettings {
-    pub fn base_url(&self) -> reqwest::Url {
-        reqwest::Url::parse(&self.base_url_str).expect("Failed to Parse `base_url_str`")
-    }
-
-    pub fn sender(&self) -> Result<SubscriberEmail, String> {
-        SubscriberEmail::parse(self.sender_email.clone())
-    }
-
     pub fn timeout(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.timeout_milliseconds)
     }
