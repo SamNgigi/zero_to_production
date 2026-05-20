@@ -1,2 +1,2 @@
-pull_axum_notes branch_name="chpt7-axum/reject-invalid-subscriber-2":
+pull_axum_notes branch_name="chpt8-axum/error-handling":
   git checkout {{branch_name}} -- notebooks
