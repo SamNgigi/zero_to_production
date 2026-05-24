@@ -6,6 +6,25 @@ use wiremock::{
 use crate::helpers::spawn_app;
 
 #[tokio::test]
+async fn subscribe_fails_if_fatal_database_error_occurs() {
+    // NOTE: ARRANGE
+    let app = spawn_app().await;
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    // Sabotaging our database
+    sqlx::query!("ALTER TABLE subscription_tokens DROP COLUMN subscription_token;",)
+        .execute(&app.db_pool)
+        .await
+        .expect("Failed to execute drop subscription_token column query in test");
+
+    // NOTE: ACT
+    let response = app.post_subscriptions(body.into()).await;
+
+    // NOTE: ASSERT
+    assert_eq!(response.status().as_u16(), 500);
+}
+
+#[tokio::test]
 async fn subscribe_sends_confirmation_email_with_confirmation_link() {
     // NOTE: ARRANGE
     let app = spawn_app().await;
