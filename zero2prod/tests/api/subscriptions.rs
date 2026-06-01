@@ -12,7 +12,7 @@ async fn subscribe_fails_if_fatal_database_error_occurs() {
     let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
 
     // Sabotaging our database
-    sqlx::query!("ALTER TABLE subscriptions DROP COLUMN email;",)
+    sqlx::query!("ALTER TABLE subscription_tokens DROP COLUMN subscription_token;",)
         .execute(&app.db_pool)
         .await
         .expect("Failed to execute drop subscription_token column query in test");
