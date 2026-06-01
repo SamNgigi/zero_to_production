@@ -42,18 +42,18 @@
   ]
 }
 {
-  "timestamp": "2026-06-01T08:18:23.885615Z",
+  "timestamp": "2026-06-01T09:17:49.581207Z",
   "level": "ERROR",
   "fields": {
-    "message": "Error encountered while processing the incoming HTTP request: Failed to insert new subscriber to database.\n\n Cause by:\n\terror returned from database: column \"email\" of relation \"subscriptions\" does not exist Cause by:\n\tcolumn \"email\" of relation \"subscriptions\" does not exist"
+    "message": "Error encountered while processing the incoming HTTP request: Failed to insert new subscriber to the database\n\n Cause by:\n\terror returned from database: column \"email\" of relation \"subscriptions\" does not exist Cause by:\n\tcolumn \"email\" of relation \"subscriptions\" does not exist"
   },
   "target": "tracing_actix_web::middleware",
   "span": {
-    "exception.details": "Failed to insert new subscriber to database.\n\n Cause by:\n\terror returned from database: column \"email\" of relation \"subscriptions\" does not exist Cause by:\n\tcolumn \"email\" of relation \"subscriptions\" does not exist",
-    "exception.message": "Failed to insert new subscriber to database.",
+    "exception.details": "Failed to insert new subscriber to the database\n\n Cause by:\n\terror returned from database: column \"email\" of relation \"subscriptions\" does not exist Cause by:\n\tcolumn \"email\" of relation \"subscriptions\" does not exist",
+    "exception.message": "Failed to insert new subscriber to the database",
     "http.client_ip": "127.0.0.1",
     "http.flavor": "1.1",
-    "http.host": "127.0.0.1:50832",
+    "http.host": "127.0.0.1:61175",
     "http.method": "POST",
     "http.route": "/{name}",
     "http.scheme": "http",
@@ -63,16 +63,16 @@
     "otel.kind": "server",
     "otel.name": "POST /{name}",
     "otel.status_code": "ERROR",
-    "request_id": "607d4ad5-1016-4bca-b724-73fa2b208f42",
+    "request_id": "3d7766cc-25c7-4e70-aeb3-7ce8fba7397e",
     "name": "HTTP request"
   },
   "spans": [
     {
-      "exception.details": "Failed to insert new subscriber to database.\n\n Cause by:\n\terror returned from database: column \"email\" of relation \"subscriptions\" does not exist Cause by:\n\tcolumn \"email\" of relation \"subscriptions\" does not exist",
-      "exception.message": "Failed to insert new subscriber to database.",
+      "exception.details": "Failed to insert new subscriber to the database\n\n Cause by:\n\terror returned from database: column \"email\" of relation \"subscriptions\" does not exist Cause by:\n\tcolumn \"email\" of relation \"subscriptions\" does not exist",
+      "exception.message": "Failed to insert new subscriber to the database",
       "http.client_ip": "127.0.0.1",
       "http.flavor": "1.1",
-      "http.host": "127.0.0.1:50832",
+      "http.host": "127.0.0.1:61175",
       "http.method": "POST",
       "http.route": "/{name}",
       "http.scheme": "http",
@@ -82,7 +82,7 @@
       "otel.kind": "server",
       "otel.name": "POST /{name}",
       "otel.status_code": "ERROR",
-      "request_id": "607d4ad5-1016-4bca-b724-73fa2b208f42",
+      "request_id": "3d7766cc-25c7-4e70-aeb3-7ce8fba7397e",
       "name": "HTTP request"
     }
   ]
