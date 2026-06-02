@@ -220,7 +220,7 @@ mod tests {
         )
     }
     fn email() -> SubscriberEmail {
-        SubscriberEmail::parse(SafeEmail().fake()).expect("Failed to parse test email")
+        SubscriberEmail::parse(&SafeEmail().fake::<String>()).expect("Failed to parse test email")
     }
     fn subject() -> String {
         Sentence(1..3).fake()

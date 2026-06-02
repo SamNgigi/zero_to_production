@@ -6,6 +6,24 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn subscribe_fails_if_fatal_database_error_occurs() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+
+    // NOTE: Act
+    sqlx::query!("ALTER TABLE subscription_tokens DROP COLUMN subscription_token;")
+        .execute(&app.db_pool)
+        .await
+        .expect("Failed to execute drop subscription_token column query in test.");
+
+    let response = app.post_subscriptions(body.into()).await;
+
+    // NOTE: Assert
+    assert_eq!(response.status().as_u16(), 500);
+}
+
+#[tokio::test]
 async fn subscribe_persists_new_subscriber_with_pending_confirmation_status() {
     // NOTE: Arrange
     let app = spawn_app().await;

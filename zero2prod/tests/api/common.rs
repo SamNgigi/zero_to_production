@@ -7,6 +7,7 @@ use wiremock::MockServer;
 use zero2prod::{
     config::{DBSettings, get_config},
     startup::{Application, get_connection_pool},
+    telemetry,
 };
 
 pub struct TestApp {
@@ -55,7 +56,18 @@ impl TestApp {
     }
 }
 
-static TRACING: LazyLock<()> = LazyLock::new(|| {});
+// INFO: Ensuring that the `tracing` stack is only initialized once using `std::sync::LazyLock`.
+// Replaces `once_cell::sync::Lazy`.
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let default_filter_level = "info".to_string();
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = telemetry::get_tracing_subscriber(default_filter_level, std::io::stdout);
+        telemetry::init_tracing_subscriber(subscriber);
+    } else {
+        let subscriber = telemetry::get_tracing_subscriber(default_filter_level, std::io::sink);
+        telemetry::init_tracing_subscriber(subscriber);
+    }
+});
 
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);

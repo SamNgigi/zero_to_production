@@ -11,6 +11,7 @@ path = "src/main.rs"
 name = "zero2prod"
 
 [dependencies]
+anyhow = "1.0.102"
 axum = "0.8.8"
 chrono = { version = "0.4.44", default-features = false, features = ["clock"] }
 config = { version = "0.15.22", default-features = false, features = ["yaml"] }
@@ -22,6 +23,7 @@ serde-aux = "4.7.0"
 serde_json = "1.0.149"
 serde_with = "3.18.0"
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "macros", "postgres", "uuid", "chrono", "migrate"] }
+thiserror = "2.0.18"
 tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "signal"] }
 tower-http = { version = "0.6.8", features = ["trace"] }
 tracing = { version = "0.1.44", features = ["log"] }
