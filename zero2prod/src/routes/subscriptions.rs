@@ -1,4 +1,10 @@
-use axum::{Form, extract::State, http::StatusCode, response::IntoResponse};
+use anyhow::Context;
+use axum::{
+    Form, Json,
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use chrono::Utc;
 use rand::{RngExt, distr::Alphanumeric};
 use sqlx::{Executor, Postgres, Transaction};
@@ -9,6 +15,65 @@ use crate::{
     email_client::EmailClient,
     startup::AppState,
 };
+
+#[derive(Debug, serde::Serialize)]
+pub struct APIErrorBody {
+    pub code: &'static str,
+    pub msg: String,
+}
+
+#[derive(thiserror::Error)]
+pub enum SubscribeError {
+    #[error("{0}")]
+    Validation(String),
+    #[error(transparent)]
+    Unexpected(#[from] anyhow::Error),
+}
+
+impl IntoResponse for SubscribeError {
+    fn into_response(self) -> Response {
+        let (status, response_body) = match &self {
+            SubscribeError::Validation(e) => (
+                StatusCode::BAD_REQUEST,
+                APIErrorBody {
+                    code: "bad_request",
+                    msg: e.to_string(),
+                },
+            ),
+            SubscribeError::Unexpected(err) => {
+                tracing::error!(error = ?err, "internal_error");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    APIErrorBody {
+                        code: "internal_error",
+                        msg: "Internal Server Error Occurred".to_string(),
+                    },
+                )
+            }
+        };
+
+        (status, Json(response_body)).into_response()
+    }
+}
+
+impl std::fmt::Debug for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+fn error_chain_fmt(
+    e: &impl std::error::Error,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    write!(f, "{}\n\n", e)?;
+    let mut current = e.source();
+    while let Some(cause) = current {
+        write!(f, " Caused by:\n\t{}", cause)?;
+        current = cause.source()
+    }
+    Ok(())
+}
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -43,48 +108,39 @@ impl TryFrom<FormData> for NewSubscriber {
 pub async fn subscribe(
     State(state): State<AppState>,
     Form(form): Form<FormData>,
-) -> impl IntoResponse {
-    let new_subscriber = match NewSubscriber::try_from(form) {
-        Ok(form) => form,
-        Err(_) => return StatusCode::BAD_REQUEST,
-    };
+) -> Result<StatusCode, SubscribeError> {
+    let new_subscriber = NewSubscriber::try_from(form).map_err(SubscribeError::Validation)?;
+    let mut transaction = state
+        .db_pool
+        .begin()
+        .await
+        .context("Failed to acquire Postgress connection to pool.")?;
 
-    let mut transaction = match state.db_pool.begin().await {
-        Ok(transaction) => transaction,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
-        Ok(subscriber_id) => subscriber_id,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
+        .await
+        .context("Failed to insert new subscriber to database.")?;
 
     let subscription_token = generate_subscription_token();
 
-    if store_subscription_token(&mut transaction, &subscription_token, subscriber_id)
+    store_subscription_token(&mut transaction, &subscription_token, subscriber_id)
         .await
-        .is_err()
-    {
-        return StatusCode::INTERNAL_SERVER_ERROR;
-    }
+        .context("Failed to store confirmation token for new subscriber.")?;
 
-    if transaction.commit().await.is_err() {
-        return StatusCode::INTERNAL_SERVER_ERROR;
-    }
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction for adding a new subscriber to database.")?;
 
-    if send_confirmation_email(
+    send_confirmation_email(
         &state.email_client,
         new_subscriber,
         &state.base_url.0,
         &subscription_token,
     )
     .await
-    .is_err()
-    {
-        return StatusCode::INTERNAL_SERVER_ERROR;
-    }
+    .context("Failed to send confirmation email to new subscriber.")?;
 
-    StatusCode::OK
+    Ok(StatusCode::OK)
 }
 
 /* INFO:
@@ -148,10 +204,7 @@ async fn store_subscription_token(
         subscriber_id,
     );
 
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute store_subscription_token query: {}", e);
-        e
-    })?;
+    transaction.execute(query).await?;
 
     Ok(())
 }
