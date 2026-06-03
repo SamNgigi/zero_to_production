@@ -13,7 +13,7 @@ use axum::{
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{net::TcpListener as TokioTcpListener, signal};
 use tower_http::trace::TraceLayer;
-use tracing::{Span, field::Empty};
+use tracing::{Level, Span, field::Empty};
 use uuid::Uuid;
 
 pub struct Application {
@@ -29,7 +29,7 @@ impl Application {
         let listener = TokioTcpListener::bind(address)
             .await
             .expect("Failed to bind to port in build");
-        let port = listener.local_addr().unwrap().port();
+        let port = listener.local_addr()?.port();
 
         // Setup `connection_pool`
         let connection_pool = get_connection_pool(&config.db);
@@ -54,7 +54,7 @@ impl Application {
         self.port
     }
     pub async fn run_until_stopped(self) -> Result<(), std::io::Error> {
-        println!("👂 Listening on {}", &self.listener.local_addr().unwrap());
+        println!("👂 Listening on {}", &self.listener.local_addr()?);
         axum::serve(self.listener, self.router)
             .with_graceful_shutdown(shutdown_signal())
             .await
@@ -85,22 +85,28 @@ fn build_router(db_pool: PgPool, email_client: EmailClient, base_url: String) ->
                 request_id = %request_id,
                 status = Empty, // filled in on_response
                 "error.message" = Empty, // filled in on_response
+                "error.chain" = Empty, // filled in on_response
             )
         })
         .on_response(
             |response: &http::Response<_>, latency: Duration, span: &Span| {
                 let status = response.status();
                 span.record("status", status.as_u16());
-                if status.is_server_error() {
-                    if let Some(report) = response.extensions().get::<ErrorReport>() {
-                        span.record("error.message", report.message.as_str());
-                        tracing::error!(error.chain = %report.details, "Internal Server Error (report attached)");
-                    } else {
-                        // 5xx that didn't go through our IntoResponse - still want one line logged
-                        tracing::error!(?latency, "Server Error (NO report attached)");
+                if let Some(report) = response.extensions().get::<ErrorReport>() {
+                    span.record("error.message", report.message.as_str());
+                    span.record("error.chain", report.details.as_str());
+                }
+                let latency = format!("{latency:?}");
+                match () {
+                    _ if status.is_server_error() => {
+                        tracing::event!(Level::ERROR, %latency, "Internal Server Error.")
                     }
-                } else {
-                    tracing::info!(?latency, "response: {}", status);
+                    _ if status.is_client_error() => {
+                        tracing::event!(Level::WARN, %latency, %status, "Client Side Error.")
+                    }
+                    _ => {
+                        tracing::event!(Level::INFO, %latency, %status, "Request Completed.")
+                    }
                 }
             },
         )

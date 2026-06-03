@@ -13,11 +13,11 @@ use uuid::Uuid;
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberUsername},
     email_client::EmailClient,
-    routes::errors::{APIErrorBody, ErrorReport, error_chain_fmt},
+    routes::errors::{APIErrorBody, ErrorReport},
     startup::AppState,
 };
 
-#[derive(thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum SubscribeError {
     #[error("{0}")]
     Validation(String),
@@ -27,8 +27,7 @@ pub enum SubscribeError {
 
 impl IntoResponse for SubscribeError {
     fn into_response(self) -> Response {
-        // {e:?} routes through error_chain_fmt +anyhow's
-        // Debug -> numbered chain for unexpected errors
+        // {e:?} anyhow's Debug -> numbered chain for unexpected errors
         let report = ErrorReport {
             message: self.to_string(),
             details: match &self {
@@ -56,12 +55,6 @@ impl IntoResponse for SubscribeError {
         let mut response = (status, Json(response_body)).into_response();
         response.extensions_mut().insert(report);
         response
-    }
-}
-
-impl std::fmt::Debug for SubscribeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error_chain_fmt(self, f)
     }
 }
 
