@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use crate::{
     config::{DBSettings, Settings},
     email_client::EmailClient,
-    routes::{confirm, greet, health_check, subscribe},
+    routes::{ErrorReport, confirm, greet, health_check, subscribe},
 };
 
 use axum::{
@@ -12,8 +12,8 @@ use axum::{
 };
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{net::TcpListener as TokioTcpListener, signal};
-use tower_http::{classify::ServerErrorsFailureClass, trace::TraceLayer};
-use tracing::Span;
+use tower_http::trace::TraceLayer;
+use tracing::{Span, field::Empty};
 use uuid::Uuid;
 
 pub struct Application {
@@ -82,19 +82,29 @@ fn build_router(db_pool: PgPool, email_client: EmailClient, base_url: String) ->
                 "http_request",
                 method = %request.method(),
                 uri = %request.uri(),
-                request_id = %request_id
+                request_id = %request_id,
+                status = Empty, // filled in on_response
+                "error.message" = Empty, // filled in on_response
             )
         })
         .on_response(
-            |response: &http::Response<_>, latency: Duration, _span: &Span| {
-                tracing::info!("response: {} {:?}", response.status(), latency)
+            |response: &http::Response<_>, latency: Duration, span: &Span| {
+                let status = response.status();
+                span.record("status", status.as_u16());
+                if status.is_server_error() {
+                    if let Some(report) = response.extensions().get::<ErrorReport>() {
+                        span.record("error.message", report.message.as_str());
+                        tracing::error!(error.chain = %report.details, "Internal Server Error (report attached)");
+                    } else {
+                        // 5xx that didn't go through our IntoResponse - still want one line logged
+                        tracing::error!(?latency, "Server Error (NO report attached)");
+                    }
+                } else {
+                    tracing::info!(?latency, "response: {}", status);
+                }
             },
         )
-        .on_failure(
-            |error: ServerErrorsFailureClass, _latency: Duration, _span: &Span| {
-                tracing::error!("error: {}", error)
-            },
-        );
+        .on_failure(());
 
     let state = AppState {
         db_pool,

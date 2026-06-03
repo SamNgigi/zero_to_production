@@ -13,14 +13,9 @@ use uuid::Uuid;
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberUsername},
     email_client::EmailClient,
+    routes::errors::{APIErrorBody, ErrorReport, error_chain_fmt},
     startup::AppState,
 };
-
-#[derive(Debug, serde::Serialize)]
-pub struct APIErrorBody {
-    pub code: &'static str,
-    pub msg: String,
-}
 
 #[derive(thiserror::Error)]
 pub enum SubscribeError {
@@ -32,6 +27,15 @@ pub enum SubscribeError {
 
 impl IntoResponse for SubscribeError {
     fn into_response(self) -> Response {
+        // {e:?} routes through error_chain_fmt +anyhow's
+        // Debug -> numbered chain for unexpected errors
+        let report = ErrorReport {
+            message: self.to_string(),
+            details: match &self {
+                SubscribeError::Validation(_) => self.to_string(),
+                SubscribeError::Unexpected(e) => format!("{e:?}"),
+            },
+        };
         let (status, response_body) = match &self {
             SubscribeError::Validation(e) => (
                 StatusCode::BAD_REQUEST,
@@ -40,19 +44,18 @@ impl IntoResponse for SubscribeError {
                     msg: e.to_string(),
                 },
             ),
-            SubscribeError::Unexpected(err) => {
-                tracing::error!(error = ?err, "internal_error");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    APIErrorBody {
-                        code: "internal_error",
-                        msg: "Internal Server Error Occurred".to_string(),
-                    },
-                )
-            }
+            SubscribeError::Unexpected(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                APIErrorBody {
+                    code: "internal_error",
+                    msg: "Internal Server Error Occurred".to_string(),
+                },
+            ),
         };
 
-        (status, Json(response_body)).into_response()
+        let mut response = (status, Json(response_body)).into_response();
+        response.extensions_mut().insert(report);
+        response
     }
 }
 
@@ -60,19 +63,6 @@ impl std::fmt::Debug for SubscribeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         error_chain_fmt(self, f)
     }
-}
-
-fn error_chain_fmt(
-    e: &impl std::error::Error,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    write!(f, "{}\n\n", e)?;
-    let mut current = e.source();
-    while let Some(cause) = current {
-        write!(f, " Caused by:\n\t{}", cause)?;
-        current = cause.source()
-    }
-    Ok(())
 }
 
 #[derive(serde::Deserialize)]
@@ -167,15 +157,7 @@ async fn insert_subscriber(
         new_subscriber.username.as_ref(),
         Utc::now(),
     );
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        e
-        /* INFO:
-         * Using the `?` operator to return early
-         * if the function failed, returning a sqlx::Error
-         * We will talk about error handling in depth later!
-         * */
-    })?;
+    transaction.execute(query).await?;
     Ok(subscriber_id)
 }
 

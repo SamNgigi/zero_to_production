@@ -6,7 +6,21 @@ use axum::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::startup::AppState;
+use crate::{routes::errors::error_chain_fmt, startup::AppState};
+
+#[derive(thiserror::Error)]
+pub enum ConfirmError {
+    #[error(transparent)]
+    NotFound(#[from] sqlx::Error),
+    #[error(transparent)]
+    Unexpected(#[from] anyhow::Error),
+}
+
+impl std::fmt::Debug for ConfirmError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
 
 #[derive(serde::Deserialize)]
 pub struct Params {
