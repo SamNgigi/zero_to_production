@@ -5,6 +5,40 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn newsletters_return_400_for_invalid_data() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let test_cases = vec![
+        (
+            serde_json::json!({
+                "content": {
+                    "plain": "Newsletter as plain text",
+                    "html": "<p>Newsletter as plain text</p>",
+                }
+            }),
+            "Missing title",
+        ),
+        (
+            serde_json::json!({"title": "Newsletter title!"}),
+            "Missing content",
+        ),
+    ];
+
+    // NOTE: Act
+    for (invalid_data, error_msg) in test_cases {
+        let response = app.post_newsletters(invalid_data).await;
+
+        // NOTE: Assert
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            "API failed to return 400 when payload was: {}",
+            error_msg
+        )
+    }
+}
+
+#[tokio::test]
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // NOTE: Arrange
     let app = spawn_app().await;
@@ -26,12 +60,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     });
 
     // NOTE: Act
-    let response = reqwest::Client::new()
-        .post(format!("{}/newsletters", &app.address))
-        .json(&newsletter_request_body)
-        .send()
-        .await
-        .expect("Failed to execute post newsletter request in test");
+    let response = app.post_newsletters(newsletter_request_body).await;
 
     // NOTE: Assert
     assert_eq!(response.status().as_u16(), 200);
@@ -58,12 +87,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
         }
     });
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/newsletters", &app.address))
-        .json(&newsletter_request_body)
-        .send()
-        .await
-        .expect("Failed to execute post newsletter request in test");
+    let response = app.post_newsletters(newsletter_request_body).await;
 
     // NOTE: Assert
     assert_eq!(response.status().as_u16(), 200);
