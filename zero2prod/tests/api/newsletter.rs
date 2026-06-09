@@ -1,8 +1,41 @@
-use crate::helpers::{TestApp, spawn_app};
+use crate::helpers::{ConfirmationLinks, TestApp, spawn_app};
 use wiremock::{
     Mock, ResponseTemplate,
     matchers::{any, method, path},
 };
+
+#[tokio::test]
+async fn newsletters_are_delivered_to_confirmed_subscribers() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let newsletter_request_body = serde_json::json!({
+        "title": "Newsletter title",
+        "content": {
+            "plain": "Newsletter as plain text",
+            "html": "<p>Newsletter as HTML</p>",
+        }
+    });
+
+    // NOTE: Act
+    let response = reqwest::Client::new()
+        .post(format!("{}/newsletters", &app.address))
+        .json(&newsletter_request_body)
+        .send()
+        .await
+        .expect("Failed to execute post newsletter request in test");
+
+    // NOTE: Assert
+    assert_eq!(response.status().as_u16(), 200);
+}
 
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
@@ -36,7 +69,16 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     assert_eq!(response.status().as_u16(), 200);
 }
 
-async fn create_unconfirmed_subscriber(app: &TestApp) {
+async fn create_confirmed_subscriber(app: &TestApp) {
+    let confirmation_links = create_unconfirmed_subscriber(app).await;
+    reqwest::get(confirmation_links.html)
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+}
+
+async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
     let body = "username=lei%yin&email=lei_yin_loo%40gmail.com";
 
     let _mock_guard = Mock::given(path("/email"))
@@ -51,4 +93,14 @@ async fn create_unconfirmed_subscriber(app: &TestApp) {
         .await
         .error_for_status()
         .expect("Failed to create unconfirmed subscriber in test");
+
+    let request_body = &app
+        .email_server
+        .received_requests()
+        .await
+        .unwrap()
+        .pop()
+        .unwrap();
+
+    app.get_confirmation_links(request_body)
 }
