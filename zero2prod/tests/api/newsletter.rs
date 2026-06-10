@@ -32,7 +32,7 @@ async fn newsletters_return_400_for_invalid_data() {
         assert_eq!(
             400,
             response.status().as_u16(),
-            "API failed to return 400 when payload was: {}",
+            "The API did not fail with 400 Bad Request when payload was: {}",
             error_msg
         )
     }
