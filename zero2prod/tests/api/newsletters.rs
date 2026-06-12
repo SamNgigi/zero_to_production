@@ -12,9 +12,35 @@ async fn newsletters_returns_400_for_invalid_data() {
 
 #[tokio::test]
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
+    // NOTE: Arrange
     let app = spawn_app().await;
     create_confirmed_subscriber(&app).await;
-    todo!()
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // NOTE: Act
+    let newsletter_request_body = serde_json::json!({
+        "title": "Newsletter title!",
+        "content": {
+            "plain": "Newsletter issue as plain text",
+            "html": "<p>Newsletter issue as HTML</p>"
+        }
+    });
+
+    let response = reqwest::Client::new()
+        .post(format!("{}/newsletters", &app.address))
+        .json(&newsletter_request_body)
+        .send()
+        .await
+        .expect("Failed to execute post newsletter request in test");
+
+    // NOTE: Assert
+    assert_eq!(response.status().as_u16(), 200);
 }
 
 #[tokio::test]
@@ -49,8 +75,13 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     assert_eq!(response.status().as_u16(), 200);
 }
 
-async fn create_confirmed_subscriber(_app: &TestApp) {
-    todo!()
+async fn create_confirmed_subscriber(app: &TestApp) {
+    let confirmation_links = create_unconfirmed_subscriber(app).await;
+    reqwest::get(confirmation_links.html)
+        .await
+        .unwrap()
+        .error_for_status()
+        .expect("Failed to execute request to create confirmed subscriber in test");
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
