@@ -3,13 +3,13 @@
 Want to implement everything from memory as best as I can<br/>
 
 - [ ] Add relevant tests
-    - [ ] Add `test/api/newsletters.rs` module
-    - [ ] `newsletters_are_not_delivered_to_unconfirmed_subscribers`
+    - [x] Add `test/api/newsletters.rs` module
+    - [x] `newsletters_are_not_delivered_to_unconfirmed_subscribers`
     - [ ] `newsletters_are_delivered_to_confirmed_subscribers`
     - [ ] `newsletter_returns_400_for_invalid_data`
 - [ ] Naive implementation
-    - [ ] Add `src/routes/newsletters.rs` module 
-    - [ ] Implement skeleton `publish_newsletter` handler and update route
+    - [x] Add `src/routes/newsletters.rs` module 
+    - [x] Implement skeleton `publish_newsletter` handler and update route
     - [ ] Add newsletter `BodyContent`
     - [ ] Implement `get_confirmed_subscribers`
     - [ ] Add `PublishError` for error handling
