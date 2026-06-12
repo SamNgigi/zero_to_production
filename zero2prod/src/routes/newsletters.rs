@@ -38,15 +38,27 @@ pub async fn publish_newsletter(
     let subscribers = get_confirmed_subscribers(&db_pool).await?;
 
     for sub in subscribers {
-        email_client
-            .send_email(
-                sub.email,
-                &body.title,
-                &body.content.html,
-                &body.content.plain,
-            )
-            .await
-            .with_context(|| format!("Failed to send newsletter issue to {}", sub.email))?;
+        match sub {
+            Ok(subscriber) => email_client
+                .send_email(
+                    subscriber.email,
+                    &body.title,
+                    &body.content.html,
+                    &body.content.plain,
+                )
+                .await
+                .with_context(|| {
+                    format!("Failed to send newsletter issue to {}", subscriber.email)
+                })?,
+            Err(error) => {
+                tracing::warn!(
+                    error.cause_chain = ?error,
+                    "Skipping confirmed subscriber. \
+                    Store contact details are invalid: {}",
+                    error
+                );
+            }
+        }
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -59,7 +71,7 @@ struct ConfirmedSubscriber {
 #[tracing::instrument(name = "Get Confirmed Subscriber", skip(db_pool))]
 async fn get_confirmed_subscribers(
     db_pool: &PgPool,
-) -> Result<Vec<ConfirmedSubscriber>, anyhow::Error> {
+) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
     struct Row {
         email: String,
     }
@@ -77,15 +89,9 @@ async fn get_confirmed_subscribers(
 
     let confirmed_subscribers = rows
         .into_iter()
-        .filter_map(|r| match SubscriberEmail::parse(r.email) {
-            Ok(email) => Some(ConfirmedSubscriber { email }),
-            Err(err) => {
-                tracing::error!(
-                    "A confirmed subscriber is using an invalid email address. \n{}",
-                    err
-                );
-                None
-            }
+        .map(|r| match SubscriberEmail::parse(r.email) {
+            Ok(email) => Ok(ConfirmedSubscriber { email }),
+            Err(err) => Err(anyhow::anyhow!(err)),
         })
         .collect();
 
