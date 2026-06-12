@@ -1,3 +1,4 @@
+use anyhow::Context;
 use axum::{
     Json,
     extract::State,
@@ -45,22 +46,46 @@ impl IntoResponse for PublishError {
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
-    _title: String,
-    _content: Content,
+    title: String,
+    content: Content,
 }
 
 #[derive(serde::Deserialize)]
 pub struct Content {
-    _html: String,
-    _plain: String,
+    html: String,
+    plain: String,
 }
 
-#[tracing::instrument(name = "Publish newsletter issue", skip(state, _body))]
+#[tracing::instrument(name = "Publish newsletter issue", skip(state, body))]
 pub async fn publish_newsletter(
     State(state): State<AppState>,
-    _body: Json<BodyData>,
+    body: Json<BodyData>,
 ) -> Result<impl IntoResponse, PublishError> {
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
+    for sub in subscribers {
+        match sub {
+            Ok(subscriber) => state
+                .email_client
+                .send_email(
+                    subscriber.email,
+                    &body.title,
+                    &body.content.html,
+                    &body.content.plain,
+                )
+                .await
+                .with_context(|| {
+                    format!("Failed to send newsletter issue to {}", subscriber.email)
+                })?,
+            Err(error) => {
+                tracing::warn!(
+                    error.cause_chain = ?error,
+                    "Skipping confirmed subscriber. \
+                    Store contact details are invalid: {}",
+                    error
+                );
+            }
+        }
+    }
     Ok(StatusCode::OK)
 }
 
