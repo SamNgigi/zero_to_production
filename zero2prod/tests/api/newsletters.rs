@@ -1,24 +1,81 @@
+use crate::common::{ConfirmationLinks, TestApp, spawn_app};
+use wiremock::{
+    Mock, ResponseTemplate,
+    matchers::{any, method, path},
+};
+
 #[tokio::test]
 async fn newsletters_returns_400_for_invalid_data() {
+    let _app = spawn_app().await;
     todo!()
 }
 
 #[tokio::test]
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
-    create_confirmed_subscriber().await;
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
     todo!()
 }
 
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
-    create_unconfirmed_subscriber().await;
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    create_unconfirmed_subscriber(&app).await;
+
+    // NOTE: Act
+    Mock::given(any())
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0) // email server should not receive any request. Asserted at end of scope
+        .mount(&app.email_server)
+        .await;
+
+    let newsletter_request_body = serde_json::json!({
+        "title": "Newsletter title!",
+        "content": {
+            "plain": "Newsletter issue as plain text",
+            "html": "<p>Newsletter issue as HTML</p>"
+        }
+    });
+
+    let response = reqwest::Client::new()
+        .post(format!("{}/newsletters", &app.address))
+        .json(&newsletter_request_body)
+        .send()
+        .await
+        .expect("Failed to execute newsletter post request in test");
+
+    // NOTE: Arrange
+    assert_eq!(response.status().as_u16(), 200);
+}
+
+async fn create_confirmed_subscriber(_app: &TestApp) {
     todo!()
 }
 
-async fn create_confirmed_subscriber() {
-    todo!()
-}
+async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
+    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
 
-async fn create_unconfirmed_subscriber() {
-    todo!()
+    let _mock_guard = Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .named("Create Unconfirmed Subscriber")
+        .expect(1)
+        .mount_as_scoped(&app.email_server)
+        .await;
+
+    app.post_subscriptions(body.into())
+        .await
+        .error_for_status()
+        .expect("Failed to create unconfirmed subscriber in test");
+
+    let received_request = &app
+        .email_server
+        .received_requests()
+        .await
+        .unwrap()
+        .pop()
+        .unwrap();
+
+    app.get_confirmation_links(received_request)
 }
