@@ -5,9 +5,41 @@ use wiremock::{
 };
 
 #[tokio::test]
-async fn newsletters_returns_400_for_invalid_data() {
-    let _app = spawn_app().await;
-    todo!()
+async fn newsletters_returns_422_for_invalid_data() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let test_cases = vec![
+        (
+            serde_json::json!({ "title": "Newsletter title!" }),
+            "Missing content",
+        ),
+        (
+            serde_json::json!({ "content": {
+                "plain": "Newsletter issue as plain text",
+                "html": "<p>Newsletter issue as HTML</p>",
+                }
+            }),
+            "Missing title",
+        ),
+    ];
+
+    // NOTE: Act
+    for (invalid_body, error_msg) in test_cases {
+        let response = reqwest::Client::new()
+            .post(format!("{}/newsletters", &app.address))
+            .json(&invalid_body)
+            .send()
+            .await
+            .expect("Failed to execute post newsletter request in test.");
+
+        // NOTE: Assert
+        assert_eq!(
+            422,
+            response.status().as_u16(),
+            "API did not return a 422 Unprocessable entity for invalid body with {}",
+            error_msg
+        );
+    }
 }
 
 #[tokio::test]
