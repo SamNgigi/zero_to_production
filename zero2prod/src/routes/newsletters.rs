@@ -1,7 +1,47 @@
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use sqlx::PgPool;
 
-use crate::{domain::SubscriberEmail, startup::AppState};
+use crate::{
+    domain::SubscriberEmail,
+    routes::errors::{APIErrorBody, ErrorReport},
+    startup::AppState,
+};
+
+#[derive(Debug, thiserror::Error)]
+pub enum PublishError {
+    #[error(transparent)]
+    Unexpected(#[from] anyhow::Error),
+}
+
+impl IntoResponse for PublishError {
+    fn into_response(self) -> Response {
+        let report = ErrorReport {
+            message: self.to_string(),
+            details: match &self {
+                PublishError::Unexpected(e) => format!("{e:?}"),
+            },
+        };
+
+        let (status_code, body) = match &self {
+            PublishError::Unexpected(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                APIErrorBody {
+                    code: "internal_error",
+                    msg: "Internal Server Error Occurred".to_string(),
+                },
+            ),
+        };
+
+        let mut response = (status_code, Json(body)).into_response();
+        response.extensions_mut().insert(report);
+        response
+    }
+}
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
@@ -19,9 +59,9 @@ pub struct Content {
 pub async fn publish_newsletter(
     State(state): State<AppState>,
     _body: Json<BodyData>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, PublishError> {
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
-    StatusCode::OK
+    Ok(StatusCode::OK)
 }
 
 struct ConfirmedSubscriber {
