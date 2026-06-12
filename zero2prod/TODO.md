@@ -1,8 +1,18 @@
-### Axum Implementation - Error Handling
+### Axum Implementation - Naive Newsletter Delivery
 
 Want to implement everything from memory as best as I can<br/>
 
-- [x] Add `subscribe_fails_if_fatal_database_error_occurs` test for inspecting logs
-- [x] Implement the `SubscribeError` enum add `thiserror` procedural macro
-- [x] Implement `IntoResponse` for `SubscribeError`
-- [x] Implement error handling for `confirm` handler
+- [ ] Add relevant tests
+    - [ ] Add `test/api/newsletters.rs` module
+    - [ ] `newsletters_are_not_delivered_to_unconfirmed_subscribers`
+    - [ ] `newsletters_are_delivered_to_confirmed_subscribers`
+    - [ ] `newsletter_returns_400_for_invalid_data`
+- [ ] Naive implementation
+    - [ ] Add `src/routes/newsletters.rs` module 
+    - [ ] Implement skeleton `publish_newsletter` handler and update route
+    - [ ] Add newsletter `BodyContent`
+    - [ ] Implement `get_confirmed_subscribers`
+    - [ ] Add `PublishError` for error handling
+    - [ ] Flesh out final `publish_newsletter` implementation
+
+
