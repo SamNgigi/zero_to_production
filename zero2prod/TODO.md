@@ -10,7 +10,7 @@ Want to implement everything from memory as best as I can<br/>
 - [ ] Naive implementation
     - [x] Add `src/routes/newsletters.rs` module 
     - [x] Implement skeleton `publish_newsletter` handler and update route
-    - [ ] Add newsletter `BodyContent`
+    - [x] Add newsletter `BodyContent`
     - [ ] Implement `get_confirmed_subscribers`
     - [ ] Add `PublishError` for error handling
     - [ ] Flesh out final `publish_newsletter` implementation
