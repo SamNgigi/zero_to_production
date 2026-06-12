@@ -1,5 +1,8 @@
 set dotenv-load := true
 
+clippy-check:
+  cargo clippy --all-targets -- -D warnings
+
 itest target="*" fn="":
   cargo test --test '{{target}}' -- {{fn}}
 
