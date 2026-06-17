@@ -1,2 +1,3 @@
-./notebooks/*.ipynb linguist-language=Rust
-./notebooks/*.ipynb linguist-language=Rust
+*.ipynb linguist-language=Rust
+notebooks/* linguist-documentation
+
