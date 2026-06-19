@@ -30,6 +30,7 @@ serde_json = "1.0.149"
 rand = "0.10.1"
 thiserror = "2.0.18"
 anyhow = "1.0.102"
+base64 = "0.22.1"
 
 [dev-dependencies]
 claims = "0.8.0"

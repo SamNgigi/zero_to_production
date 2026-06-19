@@ -5,6 +5,33 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn requests_missing_authorization_are_rejected() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act
+    let response = reqwest::Client::new()
+        .post(format!("{}/newsletters", &app.address))
+        .json(&serde_json::json!({
+            "title": "Newsletter Title",
+            "content": {
+                "plain": "Newsletter issue as plain text",
+                "html": "<p>Newsletter issue as plain text</p>"
+            }
+        }))
+        .send()
+        .await
+        .expect("Failed to execute post newsletter request in test");
+
+    // NOTE: Assert
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers()["WWW-Authenticate"]
+    );
+}
+
+#[tokio::test]
 async fn newsletters_return_400_for_invalid_data() {
     // NOTE: Arrange
     let app = spawn_app().await;
