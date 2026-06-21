@@ -45,8 +45,10 @@ pub struct ConfirmationLinks {
 
 impl TestApp {
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+        let placeholder_credentials = Uuid::now_v7().to_string();
         reqwest::Client::new()
             .post(format!("{}/newsletters", &self.address))
+            .basic_auth(&placeholder_credentials, Some(&placeholder_credentials))
             .json(&body)
             .send()
             .await
