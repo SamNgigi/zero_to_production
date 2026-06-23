@@ -12,6 +12,17 @@ Mostly just coding sections
     - [x] Add `AuthError` variant to `PublishError` enum and add corresponding match for `StatusCode::UNAUTHORIZED`
     - [x] Implement `ResponseError`'s `error_response` function for `PublishError` adding appropriate header value.
     - [x] Update `app.post_newsletter()` with placeholder/dummy username and password.
+  - [ ] Password Verification - Approach
+      - [x] Add users table
+        - [x] Add `create_users_table` migration.
+        - [x]  Define `users` table
+      - [x] Add `validate_credentials` function to `newsletter.rs`
+      - [x] Update `publish_newsletter` with call to `validate_credentials`
+      - [x] Add tracing instrumentation to `publish_newsletter`
+      - [ ] Add `add_test_user` function to `test/api/newsletter.rs`
+      - [ ] Update `spawn_app` to call `add_test_user`
+      - [ ] Add `test_user` method to `TestApp`
+      - [ ] Update `post_newsletters` method to user `test_user` credentials.
   - [ ] Password Verification - Naive Approach
   - [ ] Password Storage
   - [ ] Do Not Block The Async Executor
