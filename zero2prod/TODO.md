@@ -12,7 +12,7 @@ Mostly just coding sections
     - [x] Add `AuthError` variant to `PublishError` enum and add corresponding match for `StatusCode::UNAUTHORIZED`
     - [x] Implement `ResponseError`'s `error_response` function for `PublishError` adding appropriate header value.
     - [x] Update `app.post_newsletter()` with placeholder/dummy username and password.
-  - [ ] Password Verification - Approach
+  - [x] Password Verification - Approach
       - [x] Add users table
         - [x] Add `create_users_table` migration.
         - [x]  Define `users` table
@@ -24,6 +24,13 @@ Mostly just coding sections
       - [x] Add `test_user` method to `TestApp`
       - [x] Update `post_newsletters` method to user `test_user` credentials.
   - [ ] Password Storage
+    - [ ] Using `sha3` for a cryptographic hash for getting a `password_hash`
+      - [ ] Generate migration to update `password` column in `users` table to `password_hash` 
+      - [ ] Update `validate_credentials` to generate a `password_hash` from `credentials.password` using `sha3`
+      - [ ] Update `validate_credentials` to query on `password_hash` instead of `password`
+      - [ ] Add a `TestUser` struct with `generate` and `store` methods
+      - [ ] Add `test_user` field to `TestApp` and replace `add_test_user` and `test_user` functions with functionality  
+            provided by the `test_user` field in `TestApp`
   - [ ] Do Not Block The Async Executor
   - [ ] User Enumeration
 - [ ] Login Form

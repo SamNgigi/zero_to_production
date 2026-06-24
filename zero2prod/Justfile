@@ -1,6 +1,6 @@
 set dotenv-load := true
 
-clippy-check:
+clippy:
   cargo clippy --all-targets -- -D warnings
 
 # NOTE: Testing
