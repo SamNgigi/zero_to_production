@@ -173,6 +173,7 @@ impl TestUser {
     }
 
     async fn store(&self, db_pool: &PgPool) {
+        // TODO: UPDATE PASSWORD HASH TO BE DERIVED USING ARGON
         let password_hash = sha3::Sha3_256::digest(self.password.as_bytes());
         let password_hash = hex::encode(password_hash);
         sqlx::query!(
@@ -187,5 +188,6 @@ impl TestUser {
         .execute(db_pool)
         .await
         .expect("Failed to create test user");
+        todo!();
     }
 }

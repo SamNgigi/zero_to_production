@@ -32,15 +32,15 @@ Mostly just coding sections
       - [x] Add `test_user` field to `TestApp` and replace `add_test_user` and `test_user` functions with functionality  
          provided by the `test_user` field in `TestApp`.
     - [ ] Argon2.
-      - [ ] Config: Add the `argon2` as a dependency and initialize `hasher` in `validate_credentials`
-      - [ ] Salting.
-        - [ ] Add migration to add `salt` column to `users` table
-        - [ ] Update query in `validate_credentials` to return `user_id`, `password_hash` & `salt`
-        - [ ] Use `hasher` to generate a password hash from extracted `credentials.password` + `salt`
-      - [ ] PHC Format String.
-        - [ ] Use argon2's `PasswordHash` to get PHC formated string from stored `expected_password_hash`
-        - [ ] Use argon2's `PasswordVerifer`'s `verify_password` to do the equality check
-        - [ ] Drop the `salt` column
+      - [x] Config: Add the `argon2` as a dependency and initialize `hasher` in `validate_credentials`
+      - [x] Salting.
+        - [x] Add migration to add `salt` column to `users` table
+        - [x] Update query in `validate_credentials` to return `user_id`, `password_hash` & `salt`
+        - [x] Use `hasher` to generate a password hash from extracted `credentials.password` + `salt`
+      - [x] PHC Format String.
+        - [x] Use argon2's `PasswordHash` to get PHC formated string from stored `expected_password_hash`
+        - [x] Use argon2's `PasswordVerifer`'s `verify_password` to do the equality check
+        - [x] Drop the `salt` column
       - [ ] Update test: Use argon2's `password_hash::SaltString` to generate a `salt` & hash `test_user`'s password
   - [ ] Do Not Block The Async Executor.
   - [ ] User Enumeration.
