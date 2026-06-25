@@ -8,9 +8,9 @@ use actix_web::{
     web,
 };
 use anyhow::Context;
+use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version};
 use base64::Engine;
 use secrecy::{ExposeSecret, SecretString};
-use sha3::Digest;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -139,28 +139,47 @@ async fn validate_credentials(
     db_pool: &PgPool,
     credentials: Credentials,
 ) -> Result<Uuid, PublishError> {
-    let password_hash = sha3::Sha3_256::digest(credentials.password.expose_secret().as_bytes());
-    // This differs from original `format!("{:x}", password_hash);`
-    let password_hash = hex::encode(password_hash);
-
-    let user_id: Option<_> = sqlx::query!(
+    let row = sqlx::query!(
         r#"
-            SELECT user_id
+            SELECT user_id, password_hash, salt
                 FROM users
-            WHERE username = $1 AND password_hash = $2;
+            WHERE username=$1
         "#,
-        credentials.username,
-        password_hash,
+        credentials.username
     )
     .fetch_optional(db_pool)
     .await
-    .context("Failed to perform query to valiate auth credentials.")
+    .context("Failed to perform query to retreive stored credentials.")
     .map_err(PublishError::Unexpected)?;
 
-    user_id
-        .map(|row| row.user_id)
-        .ok_or_else(|| anyhow::anyhow!("Invalid username or password."))
-        .map_err(PublishError::Auth)
+    let (user_id, expected_password_hash, salt) = match row {
+        Some(row) => (row.user_id, row.password_hash, row.salt),
+        None => return Err(PublishError::Auth(anyhow::anyhow!("Invalid username."))),
+    };
+
+    let hasher = Argon2::new(
+        Algorithm::Argon2id,
+        Version::V0x13,
+        Params::new(19_000, 2, 1, None)
+            .context("Failed to build argon2 params.")
+            .map_err(PublishError::Unexpected)?,
+    );
+
+    let salt = argon2::password_hash::SaltString::encode_b64(salt.as_bytes())
+        .context("Failed to encode salt to base64.")
+        .map_err(PublishError::Unexpected)?;
+    let password_hash = hasher
+        .hash_password(credentials.password.expose_secret().as_bytes(), &salt)
+        .context("Failed to hash password.")
+        .map_err(PublishError::Unexpected)?;
+
+    let password_hash = hex::encode(password_hash.hash.expect("Expected hashed password"));
+
+    if expected_password_hash != password_hash {
+        Err(PublishError::Auth(anyhow::anyhow!("Invalid password")))
+    } else {
+        Ok(user_id)
+    }
 }
 
 struct ConfirmedSubscriber {
