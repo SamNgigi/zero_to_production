@@ -1,7 +1,10 @@
 use std::sync::LazyLock;
 
+use argon2::{
+    Argon2, PasswordHasher,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use secrecy::SecretString;
-use sha3::Digest;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -173,9 +176,12 @@ impl TestUser {
     }
 
     async fn store(&self, db_pool: &PgPool) {
-        // TODO: UPDATE PASSWORD HASH TO BE DERIVED USING ARGON
-        let password_hash = sha3::Sha3_256::digest(self.password.as_bytes());
-        let password_hash = hex::encode(password_hash);
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::default()
+            .hash_password(self.password.as_bytes(), &salt)
+            .expect("Failed to get password hash")
+            .to_string();
+
         sqlx::query!(
             r#"
                 INSERT INTO users (user_id, username, password_hash)
@@ -188,6 +194,5 @@ impl TestUser {
         .execute(db_pool)
         .await
         .expect("Failed to create test user");
-        todo!();
     }
 }
