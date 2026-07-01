@@ -5,6 +5,17 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn invalid_password_is_rejected_nl() {
+    todo!()
+}
+
+#[tokio::test]
+async fn non_existent_user_is_rejected_nl() {
+    let _app = spawn_app().await;
+    todo!()
+}
+
+#[tokio::test]
 async fn requests_missing_authorization_are_rejected() {
     // NOTE: Arrange
     let app = spawn_app().await;

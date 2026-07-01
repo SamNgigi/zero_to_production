@@ -31,7 +31,7 @@ Mostly just coding sections
       - [x] Add a `TestUser` struct with `generate` and `store` methods.
       - [x] Add `test_user` field to `TestApp` and replace `add_test_user` and `test_user` functions with functionality  
          provided by the `test_user` field in `TestApp`.
-    - [ ] Argon2.
+    - [x] Argon2.
       - [x] Config: Add the `argon2` as a dependency and initialize `hasher` in `validate_credentials`
       - [x] Salting.
         - [x] Add migration to add `salt` column to `users` table
@@ -41,8 +41,16 @@ Mostly just coding sections
         - [x] Use argon2's `PasswordHash` to get PHC formated string from stored `expected_password_hash`
         - [x] Use argon2's `PasswordVerifer`'s `verify_password` to do the equality check
         - [x] Drop the `salt` column
-      - [ ] Update test: Use argon2's `password_hash::SaltString` to generate a `salt` & hash `test_user`'s password
-  - [ ] Do Not Block The Async Executor.
-  - [ ] User Enumeration.
+      - [x] Update test: Use argon2's `password_hash::SaltString` to generate a `salt` & hash `test_user`'s password
+    - [x] Do Not Block The Async Executor.
+      - [x] Add `.with_span_events(FmtSpan::CLOSE)` to `fmt::layer` of `telemetry.rs` module
+      - [x] Add `get_stored_credentials` 
+      - [x] Inspect how long `Argon2::default().verify_password` takes adding a `tracing::info!` to check time elapsed
+      - [x] Add `verify_password_hash` and run it in  `tokio::task::spawn_blocking`
+      - [x] Add helper `spawn_blocking_with_tracing` in `src/telemery.rs`.
+    - [ ] User Enumeration.
+      - [ ] Add `non_existent_user_is_rejected` test.
+      - [ ] Add `invalid_user_password_is_rejected` test.
+      - [ ] Add default `expected_password_hash` and set default `user_id` to `None` pending updated from retrieved query.
 - [ ] Login Form.
 
