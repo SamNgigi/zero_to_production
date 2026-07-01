@@ -1,6 +1,10 @@
 use tracing::subscriber::{Subscriber, set_global_default};
 use tracing_log::LogTracer;
-use tracing_subscriber::{EnvFilter, Registry, fmt, fmt::MakeWriter, layer::SubscriberExt};
+use tracing_subscriber::{
+    EnvFilter, Registry,
+    fmt::{self, MakeWriter, format::FmtSpan},
+    layer::SubscriberExt,
+};
 
 /// Compose multiple layers into a `tracing`'s subscriber
 ///
@@ -26,6 +30,7 @@ where
     let formatting_layer = fmt::layer()
         .json()
         .with_writer(sink)
+        .with_span_events(FmtSpan::CLOSE)
         .with_current_span(true);
 
     Registry::default().with(env_filter).with(formatting_layer)

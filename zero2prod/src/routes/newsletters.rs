@@ -135,41 +135,56 @@ fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Erro
     })
 }
 
+#[tracing::instrument(name = "Validate credentials", skip(db_pool, credentials))]
 async fn validate_credentials(
     db_pool: &PgPool,
     credentials: Credentials,
 ) -> Result<Uuid, PublishError> {
+    let (user_id, expected_password) = get_stored_credentials(db_pool, &credentials.username)
+        .await
+        .map_err(PublishError::Unexpected)?
+        .ok_or_else(|| PublishError::Auth(anyhow::anyhow!("Invalid Username")))?;
+
+    let expected_password_phc_format = PasswordHash::new(expected_password.expose_secret())
+        .context("Failed to parse hash in PHC string format")
+        .map_err(PublishError::Unexpected)?;
+
+    let start = std::time::Instant::now();
+    let outcome = Argon2::default().verify_password(
+        credentials.password.expose_secret().as_bytes(),
+        &expected_password_phc_format,
+    );
+
+    tracing::info!(
+        elapsed_millis = start.elapsed().as_millis(),
+        "Verified Password Hash."
+    );
+    outcome
+        .context("Invalid Password")
+        .map_err(PublishError::Auth)?;
+
+    Ok(user_id)
+}
+
+#[tracing::instrument(name = "Get Stored Credentials.", skip(db_pool, username))]
+async fn get_stored_credentials(
+    db_pool: &PgPool,
+    username: &str,
+) -> Result<Option<(Uuid, SecretString)>, anyhow::Error> {
     let row = sqlx::query!(
         r#"
             SELECT user_id, password_hash
                 FROM users
-            WHERE username=$1
+            WHERE username = $1;
         "#,
-        credentials.username
+        username,
     )
     .fetch_optional(db_pool)
     .await
-    .context("Failed to perform query to retreive stored credentials.")
-    .map_err(PublishError::Unexpected)?;
+    .context("Failed to perform query to retreive stored credentials")?
+    .map(|r| (r.user_id, SecretString::from(r.password_hash)));
 
-    let (user_id, expected_password) = match row {
-        Some(row) => (row.user_id, row.password_hash),
-        None => return Err(PublishError::Auth(anyhow::anyhow!("Invalid Username"))),
-    };
-
-    let expected_password_phc_format = PasswordHash::new(&expected_password)
-        .context("Failed to parse hash in PHC string format")
-        .map_err(PublishError::Unexpected)?;
-
-    Argon2::default()
-        .verify_password(
-            credentials.password.expose_secret().as_bytes(),
-            &expected_password_phc_format,
-        )
-        .context("Invalid Username")
-        .map_err(PublishError::Auth)?;
-
-    Ok(user_id)
+    Ok(row)
 }
 
 struct ConfirmedSubscriber {
