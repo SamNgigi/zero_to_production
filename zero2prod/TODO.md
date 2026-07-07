@@ -48,9 +48,9 @@ Mostly just coding sections
       - [x] Inspect how long `Argon2::default().verify_password` takes adding a `tracing::info!` to check time elapsed
       - [x] Add `verify_password_hash` and run it in  `tokio::task::spawn_blocking`
       - [x] Add helper `spawn_blocking_with_tracing` in `src/telemery.rs`.
-    - [ ] User Enumeration.
-      - [ ] Add `non_existent_user_is_rejected` test.
-      - [ ] Add `invalid_user_password_is_rejected` test.
-      - [ ] Add default `expected_password_hash` and set default `user_id` to `None` pending updated from retrieved query.
+    - [x] User Enumeration.
+      - [x] Add `non_existent_user_is_rejected` test.
+      - [x] Add `invalid_user_password_is_rejected` test.
+      - [x] Add default `expected_password_hash` and set default `user_id` to `None` pending updated from retrieved query.
 - [ ] Login Form.
 

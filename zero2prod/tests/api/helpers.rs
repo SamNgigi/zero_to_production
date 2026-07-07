@@ -161,7 +161,7 @@ async fn configure_db(config: &DBSettings) -> PgPool {
 
 pub struct TestUser {
     user_id: Uuid,
-    username: String,
+    pub username: String,
     password: String,
 }
 

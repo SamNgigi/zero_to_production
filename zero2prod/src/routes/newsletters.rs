@@ -142,19 +142,26 @@ async fn validate_credentials(
     db_pool: &PgPool,
     credentials: Credentials,
 ) -> Result<Uuid, PublishError> {
-    let (user_id, expected_password) = get_stored_credentials(db_pool, &credentials.username)
+    let mut user_id = None;
+    let mut expected_password = SecretString::from(
+        "$argon2id$v=19$m=19000,t=2,p=1$OqVpaPog6F9sxlWW5VoHkA$4uDo1cl2daKq1ZgmmvtQBfG3wwmI8Nk4i8gHk6pwrYA".to_string()
+    );
+
+    if let Some((stored_user_id, stored_password_hash)) =
+        get_stored_credentials(db_pool, &credentials.username)
+            .await
+            .map_err(PublishError::Unexpected)?
+    {
+        user_id = Some(stored_user_id);
+        expected_password = stored_password_hash;
+    };
+
+    spawn_blocking_with_tracing(|| verify_password_hash(expected_password, credentials.password))
         .await
-        .map_err(PublishError::Unexpected)?
-        .ok_or_else(|| PublishError::Auth(anyhow::anyhow!("Invalid Username.")))?;
+        .context("Failed to spawn blocking tasks thread.")
+        .map_err(PublishError::Unexpected)??;
 
-    spawn_blocking_with_tracing(move || {
-        verify_password_hash(expected_password, credentials.password)
-    })
-    .await
-    .context("Failed to spawn blocking task thread")
-    .map_err(PublishError::Unexpected)??;
-
-    Ok(user_id)
+    user_id.ok_or_else(|| PublishError::Auth(anyhow::anyhow!("Invalid Username.")))
 }
 
 #[tracing::instrument(name = "Get Stored Credentials.", skip(db_pool, username))]

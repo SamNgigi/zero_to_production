@@ -4,15 +4,64 @@ use wiremock::{
     matchers::{any, method, path},
 };
 
+use uuid::Uuid;
+
 #[tokio::test]
 async fn invalid_password_is_rejected_nl() {
-    todo!()
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let username = &app.test_user.username;
+    let wrong_password = Uuid::now_v7().to_string();
+
+    // NOTE: Act
+    let response = reqwest::Client::new()
+        .post(format!("{}/newsletters", &app.address))
+        .basic_auth(username, Some(wrong_password))
+        .json(&serde_json::json!({
+            "title": "Newsletter title",
+            "content": {
+                "plain": "Newsletter as plain text",
+                "html": "<p>Newsletter as plain text</p>",
+            }
+        }))
+        .send()
+        .await
+        .expect("Failed to execute newsletter post request in test");
+
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers()["WWW-Authenticate"]
+    );
 }
 
 #[tokio::test]
 async fn non_existent_user_is_rejected_nl() {
-    let _app = spawn_app().await;
-    todo!()
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let placeholder_credentials = Uuid::new_v4().to_string();
+
+    // NOTE: Act
+    let response = reqwest::Client::new()
+        .post(format!("{}/newsletters", &app.address))
+        .basic_auth(&placeholder_credentials, Some(&placeholder_credentials))
+        .json(&serde_json::json!({
+            "title": "Newsletter title",
+            "content": {
+                "plain": "Newsletter as plain text",
+                "html": "<p>Newsletter as plain text</p>",
+            }
+        }))
+        .send()
+        .await
+        .expect("Failed to execute newsletter post request in test");
+
+    // NOTE: Assert
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers()["WWW-Authenticate"]
+    );
 }
 
 #[tokio::test]
