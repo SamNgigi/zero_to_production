@@ -1,6 +1,6 @@
 use crate::config::{DBSettings, Settings};
 use crate::email_client::EmailClient;
-use crate::routes::{confirm, greet, health_check, publish_newsletter, subscribe};
+use crate::routes::{confirm, greet, health_check, home, publish_newsletter, subscribe};
 use actix_web::dev::Server;
 use actix_web::{App, HttpServer, web};
 use sqlx::{PgPool, postgres::PgPoolOptions};
@@ -70,10 +70,11 @@ fn run(
             .wrap(TracingLogger::default())
             .route("/health_check", web::get().to(health_check))
             .route("/", web::get().to(greet))
-            .route("/{name}", web::get().to(greet))
+            // .route("/{name}", web::get().to(greet))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
             .route("/newsletters", web::post().to(publish_newsletter))
+            .route("/home", web::get().to(home))
             // Registering connection as part of applicaton state
             .app_data(db_pool.clone())
             // Registering email client as part of application state
