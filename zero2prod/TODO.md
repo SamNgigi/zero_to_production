@@ -23,7 +23,7 @@ Mostly just coding sections
       - [x] Update `spawn_app` to call `add_test_user`.
       - [x] Add `test_user` method to `TestApp`.
       - [x] Update `post_newsletters` method to user `test_user` credentials.
-  - [ ] Password Storage.
+  - [x] Password Storage.
     - [x] Using `sha3` for a cryptographic hash for getting a `password_hash`.
       - [x] Generate migration to update `password` column in `users` table to `password_hash`. 
       - [x] Update `validate_credentials` to generate a `password_hash` from `credentials.password` using `sha3`.
