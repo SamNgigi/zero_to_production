@@ -1,0 +1,28 @@
+<!--src/routes/login/login.html-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="content-type" content-type="text/html" charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>Login</title>
+  </head>
+  <body>
+    <form method="POST" action="/login">
+      <label>
+        <input 
+          type="text"
+          placeholder="Enter Username"
+          autocomplete="on"
+          name="username">
+      </label>
+      <label>
+        <input 
+          type="password"
+          placeholder="Enter Password"
+          name="password">
+      </label>
+      <button type="submit">Login</button>
+    </form>
+  </body>
+</html>

@@ -52,5 +52,30 @@ Mostly just coding sections
       - [x] Add `non_existent_user_is_rejected` test.
       - [x] Add `invalid_user_password_is_rejected` test.
       - [x] Add default `expected_password_hash` and set default `user_id` to `None` pending updated from retrieved query.
-- [ ] Login Form.
-
+- [x] Serving HTML pages
+  - [x] Add `src/routes/home` module with `mod.rs` and `home.html`. Update `src/routes/mod.rs`.
+  - [x] Fill out `home.html` ensuring relevant meta tag with content type
+  - [x] Implement `home` handler in `mod.rs` and update `src/startup.rs` accordingly.
+- [ ] Login
+  - [ ] Add `src/routes/login` module with initial
+    - [ ] `src/routes/login/mod.rs`
+    - [ ] `src/routes/login/get.rs` with `login_form` handler
+    - [ ] `src/routes/login/login.html`
+    - [ ] `src/routes/login/post.rs` with `login` handler
+    - [ ] Update `src/routes/mod.rs`  & `src/startup.rs` accordingly.
+  - [ ] HTML Forms
+    - [ ] Update `src/routes/login/get.rs`'s `login_form` handler passing the html page to be rendered
+    - [ ] Update `src/routes/login/login.html` `form` tag with appropriate `action` and `method` attribute
+  - [ ] Update `login` handler with a redirection on success 
+  - [ ] Processing Form Data
+    - [ ] Add `src/authentication.rs` module with initial `AuthError` enum with relevant variants
+    - [ ] Extract the following to the authentication module returning the appropriate `AuthError` instead of `PublishError`
+      - [ ] `Credentials` struct
+      - [ ] `validate_credentials`
+      - [ ] `verify_password_hash`
+      - [ ] `get_stored_credentials`
+    - [ ] Refactor `src/routes/newsletter.rs` module mapping `validate_credentials`  errors accordingly to `PublishError`
+    - [ ] Add `LoginError` with relevant variants to `src/routes/login/login.rs` module
+    - [ ] Add `ResponseError` implementation of `status_code` for `LoginError`
+    - [ ] Flesh out the `login` handler to return a result with successful redirect in the `Ok` case and appropriate
+       `LoginError` in the `Err` case
