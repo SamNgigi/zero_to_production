@@ -1,7 +1,59 @@
-use actix_web::{HttpResponse, http::header::LOCATION};
+use actix_web::{
+    HttpResponse, ResponseError,
+    http::{StatusCode, header::LOCATION},
+    web,
+};
+use secrecy::SecretString;
+use sqlx::PgPool;
 
-pub async fn login() -> HttpResponse {
-    HttpResponse::SeeOther()
+use crate::authentication::{AuthError, Credentials, validate_credentials};
+
+#[derive(thiserror::Error, Debug)]
+pub enum LoginError {
+    #[error("Authentication Failed.")]
+    AuthenticationFailed(#[source] anyhow::Error),
+    #[error(transparent)]
+    Unexpected(#[from] anyhow::Error),
+}
+
+impl ResponseError for LoginError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            LoginError::AuthenticationFailed(_) => StatusCode::UNAUTHORIZED,
+            LoginError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct FormData {
+    username: String,
+    password: SecretString,
+}
+
+#[tracing::instrument(
+    name = "Login Credential Validation", 
+    skip(db_pool, form),
+    fields(username = tracing::field::Empty, user_id = tracing::field::Empty),
+)]
+pub async fn login(
+    db_pool: web::Data<PgPool>,
+    form: web::Form<FormData>,
+) -> Result<HttpResponse, LoginError> {
+    let credentials = Credentials {
+        username: form.0.username,
+        password: form.0.password,
+    };
+    tracing::Span::current().record("username", tracing::field::display(&credentials.username));
+
+    let user_id = validate_credentials(&db_pool, credentials)
+        .await
+        .map_err(|e| match e {
+            AuthError::InvalidCredentials(_) => LoginError::AuthenticationFailed(e.into()),
+            AuthError::Unexpected(_) => LoginError::Unexpected(e.into()),
+        })?;
+    tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+    Ok(HttpResponse::SeeOther()
         .insert_header((LOCATION, "/home"))
-        .finish()
+        .finish())
 }
