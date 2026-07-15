@@ -5,6 +5,7 @@ use crate::routes::{
 };
 use actix_web::dev::Server;
 use actix_web::{App, HttpServer, web};
+use secrecy::SecretString;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
@@ -33,7 +34,13 @@ impl Application {
         let listener = TcpListener::bind(format!("{}:{}", config.app.host, config.app.port))
             .unwrap_or_else(|_| panic!("Failed to bind to port {}", config.app.port));
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, db_pool, email_client, config.app.base_url)?;
+        let server = run(
+            listener,
+            db_pool,
+            email_client,
+            config.app.base_url,
+            config.app.secret_key,
+        )?;
 
         Ok(Self { port, server })
     }
@@ -55,11 +62,15 @@ pub fn get_connection_pool(db_config: &DBSettings) -> PgPool {
 
 pub struct ApplicationBaseUrl(pub String);
 
+#[derive(Clone)]
+pub struct HMACSecret(pub SecretString);
+
 fn run(
     listener: TcpListener,
     db_pool: PgPool,
-    email_client: EmailClient, // New param
-    base_url: String,          // New param
+    email_client: EmailClient,
+    base_url: String,
+    secret_key: SecretString, // New param
 ) -> Result<Server, std::io::Error> {
     // INFO: `web::Data::new` allows us to wrap the arguments provided
     // as a `Arc` type that can be shared application wide between threads
@@ -67,6 +78,7 @@ fn run(
     let db_pool = web::Data::new(db_pool);
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
+    let secret_key = web::Data::new(HMACSecret(secret_key));
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
@@ -85,6 +97,8 @@ fn run(
             .app_data(email_client.clone())
             // Registering base_url as part of application state
             .app_data(base_url.clone())
+            // Registering secret_key as part of application state
+            .app_data(secret_key.clone())
     })
     .listen(listener)?
     .run();

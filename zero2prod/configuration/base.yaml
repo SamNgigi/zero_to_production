@@ -1,6 +1,7 @@
 app:
   port: 8000
   base_url: "http://127.0.0.1"
+  secret_key: "long-and-very-secret-random-key-needed-to-verify-message-integrity"
 db:
   host: "127.0.0.1"
   port: 5432

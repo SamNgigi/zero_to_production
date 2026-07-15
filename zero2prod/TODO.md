@@ -1,5 +1,5 @@
-# TODOS
 
+# TODOS
 ### Securing Our API
 
 Mostly just coding sections
@@ -57,25 +57,47 @@ Mostly just coding sections
   - [x] Fill out `home.html` ensuring relevant meta tag with content type
   - [x] Implement `home` handler in `mod.rs` and update `src/startup.rs` accordingly.
 - [ ] Login
-  - [ ] Add `src/routes/login` module with initial
-    - [ ] `src/routes/login/mod.rs`
-    - [ ] `src/routes/login/get.rs` with `login_form` handler
-    - [ ] `src/routes/login/login.html`
-    - [ ] `src/routes/login/post.rs` with `login` handler
-    - [ ] Update `src/routes/mod.rs`  & `src/startup.rs` accordingly.
-  - [ ] HTML Forms
-    - [ ] Update `src/routes/login/get.rs`'s `login_form` handler passing the html page to be rendered
-    - [ ] Update `src/routes/login/login.html` `form` tag with appropriate `action` and `method` attribute
-  - [ ] Update `login` handler with a redirection on success 
-  - [ ] Processing Form Data
-    - [ ] Add `src/authentication.rs` module with initial `AuthError` enum with relevant variants
-    - [ ] Extract the following to the authentication module returning the appropriate `AuthError` instead of `PublishError`
-      - [ ] `Credentials` struct
-      - [ ] `validate_credentials`
-      - [ ] `verify_password_hash`
-      - [ ] `get_stored_credentials`
-    - [ ] Refactor `src/routes/newsletter.rs` module mapping `validate_credentials`  errors accordingly to `PublishError`
-    - [ ] Add `LoginError` with relevant variants to `src/routes/login/login.rs` module
-    - [ ] Add `ResponseError` implementation of `status_code` for `LoginError`
-    - [ ] Flesh out the `login` handler to return a result with successful redirect in the `Ok` case and appropriate
+  - [x] Add `src/routes/login` module with initial
+    - [x] `src/routes/login/mod.rs`
+    - [x] `src/routes/login/get.rs` with `login_form` handler
+    - [x] `src/routes/login/login.html`
+    - [x] `src/routes/login/post.rs` with `login` handler
+    - [x] Update `src/routes/mod.rs`  & `src/startup.rs` accordingly.
+  - [x] HTML Forms
+    - [x] Update `src/routes/login/get.rs`'s `login_form` handler passing the html page to be rendered
+    - [x] Update `src/routes/login/login.html` `form` tag with appropriate `action` and `method` attribute
+  - [x] Update `login` handler with a redirection on success 
+  - [x] Processing Form Data
+    - [x] Add `src/authentication.rs` module with initial `AuthError` enum with relevant variants
+    - [x] Extract the following to the authentication module returning the appropriate `AuthError` instead of `PublishError`
+      - [x] `Credentials` struct
+      - [x] `validate_credentials`
+      - [x] `verify_password_hash`
+      - [x] `get_stored_credentials`
+    - [x] Refactor `src/routes/newsletter.rs` module mapping `validate_credentials`  errors accordingly to `PublishError`
+    - [x] Add `LoginError` with relevant variants to `src/routes/login/login.rs` module
+    - [x] Add `ResponseError` implementation of `status_code` for `LoginError`
+    - [x] Flesh out the `login` handler to return a result with successful redirect in the `Ok` case and appropriate
        `LoginError` in the `Err` case
+  - [ ] Contextual Errors
+    - [x] Note trying to render `login.html` in `error_response` trait implementation for `LoginError` with error included.
+    - [x] Redirect back to `login_form` handler from `error_response` with errors included as query params i.e. `/login?error={}`
+    - [x] Extract error query params in `login_form` via `web::Query` and render the error by formatting them as part of the rendered
+          `login.html`
+    - [x] Explore potentials [XSS](https://owasp.org/www-community/attacks/xss) attacks when errors are returned as query params
+    - [x] `html-escape` error query params as potential solution to [XSS](owasp.org/www-community/attacks/xss)
+    - [x] Add more robust HMAC tag to query params ensuring we can validate our own messages
+      - [x] Attempt adding hmac tag with secret in `error_response`'s implementation for LoginError
+      - [x] Refactor error redirection back to `login` hander from the `error_response` to allow passing of the `secret_key`
+            used for creating hmac tag
+      - [x] Wireup `secret_key` as part of application state from configs to `startup.rs` to `login`.
+      - [x] Wrap `LoginError` as part of `actix_web::error::InternalError`
+      - [x] Wrap `secret_key` in a `HMAC` type when injecting it into app state
+    - [x] Verifying The HMAC Tag
+      - [x] Update `QueryParams` struct to include `tag`. `error` and `tag` are not optional
+      - [x] `query` is now `Option<web::Query<QueryParams>>`. Handle accordingly in `login_form`
+      - [x] Add and implement `verify` function for `QueryParams`.
+      - [x] Call `verify` appropriately in `login_form` handler logging a warning incase verification fails
+    - [ ] Cookie error flash messages
+      - [ ] Add tests
+
