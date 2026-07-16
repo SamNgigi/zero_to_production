@@ -1,12 +1,8 @@
 use actix_web::{HttpResponse, error::InternalError, http::header::LOCATION, web};
-use hmac::{Hmac, KeyInit, Mac};
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use sqlx::PgPool;
 
-use crate::{
-    authentication::{AuthError, Credentials, validate_credentials},
-    startup::HMACSecret,
-};
+use crate::authentication::{AuthError, Credentials, validate_credentials};
 
 #[derive(thiserror::Error, Debug)]
 pub enum LoginError {
@@ -24,13 +20,12 @@ pub struct FormData {
 
 #[tracing::instrument(
     name = "Login Credential Validation", 
-    skip(db_pool, form, secret_key),
+    skip(db_pool, form),
     fields(username = tracing::field::Empty, user_id = tracing::field::Empty),
 )]
 pub async fn login(
     db_pool: web::Data<PgPool>,
     form: web::Form<FormData>,
-    secret_key: web::Data<HMACSecret>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -50,20 +45,9 @@ pub async fn login(
                 AuthError::InvalidCredentials(_) => LoginError::AuthenticationFailed(e.into()),
                 AuthError::Unexpected(_) => LoginError::Unexpected(e.into()),
             };
-            let error_query = format!("error={}", urlencoding::Encoded::new(e.to_string()));
-            let hmac_tag = {
-                type Hmac256 = Hmac<sha2::Sha256>;
-                let mut mac = Hmac256::new_from_slice(secret_key.0.expose_secret().as_bytes())
-                    .expect("Hmac can take key of any size");
-                mac.update(error_query.as_bytes());
-                mac.finalize().into_bytes()
-            };
 
             let response = HttpResponse::SeeOther()
-                .insert_header((
-                    LOCATION,
-                    format!("/login?{}&tag={}", error_query, hex::encode(hmac_tag)),
-                ))
+                .insert_header((LOCATION, "/login"))
                 .finish();
 
             Err(InternalError::from_response(e, response))
