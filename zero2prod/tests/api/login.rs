@@ -1,6 +1,3 @@
-use reqwest::header::HeaderValue;
-use std::collections::HashSet;
-
 use crate::helpers::spawn_app;
 
 fn assert_on_redirect(response: &reqwest::Response, location: &str) {
@@ -25,18 +22,12 @@ async fn an_error_flash_message_cookie_is_set_on_failure() {
 
     // NOTE: Act
     let response = app.post_login(&login_body).await;
-    let cookies: HashSet<_> = response
-        .headers()
-        .get_all("Set-Cookie")
-        .into_iter()
-        .collect();
+    let flash_msg = response
+        .cookies()
+        .find(|c| c.name() == "_flash")
+        .expect("Failed to find cookie by provided name");
 
     //NOTE: Assert
-    assert!(
-        cookies.contains(
-            &HeaderValue::from_str("_flash=Authentication Failed.")
-                .expect("Failed due to Invalid Header Value")
-        )
-    );
     assert_on_redirect(&response, "/login");
+    assert_eq!(flash_msg.value(), "Authentication Failed.");
 }
