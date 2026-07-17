@@ -4,7 +4,7 @@ clippy:
   cargo clippy --all-targets -- -D warnings
 
 todos:
-  cargo clippy -- -W clippy::todo
+  cargo clippy --all-targets -- -W clippy::todo
 
 # NOTE: Testing
 itest target="*" fn="":

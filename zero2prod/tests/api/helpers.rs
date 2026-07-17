@@ -56,12 +56,12 @@ impl TestApp {
         reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .expect("failed to build reqwest with no redirect policy.")
+            .expect("Failed to build reqwest client with a no redirect policy in test.")
             .post(format!("{}/login", &self.address))
             .form(body)
             .send()
             .await
-            .expect("Failed to execute login POST request in test")
+            .expect("Failed to execute login POST request in test.")
     }
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         reqwest::Client::new()
