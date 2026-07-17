@@ -1,9 +1,4 @@
-use actix_web::{
-    HttpResponse,
-    error::InternalError,
-    http::header::{LOCATION, SET_COOKIE},
-    web,
-};
+use actix_web::{HttpResponse, cookie::Cookie, error::InternalError, http::header::LOCATION, web};
 use secrecy::SecretString;
 use sqlx::PgPool;
 
@@ -53,7 +48,7 @@ pub async fn login(
 
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
-                .insert_header((SET_COOKIE, format!("_flash={e}")))
+                .cookie(Cookie::new("_flash", e.to_string()))
                 .finish();
 
             Err(InternalError::from_response(e, response))
