@@ -49,6 +49,17 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn _get_login_html(&self) -> String {
+        reqwest::Client::new()
+            .get(format!("{}/login", self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET login page request in test.")
+            .text()
+            .await
+            .expect("Failed to retreive login page as text in test.")
+    }
+
     pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
