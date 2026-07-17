@@ -49,7 +49,7 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
-    pub async fn _get_login_html(&self) -> String {
+    pub async fn get_login_html(&self) -> String {
         reqwest::Client::new()
             .get(format!("{}/login", self.address))
             .send()

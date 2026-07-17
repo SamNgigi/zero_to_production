@@ -1,5 +1,5 @@
 # Excluding large notebook files.
-notebooks/10_securing_our_api.ipynb
+notebooks/10_b_securing_our_api.ipynb
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
