@@ -40,7 +40,8 @@ pub struct TestApp {
     pub db_pool: PgPool,
     pub email_server: MockServer,
     pub port: u16,
-    pub test_user: TestUser, // New field
+    pub test_user: TestUser,
+    pub client: reqwest::Client, // New field
 }
 
 pub struct ConfirmationLinks {
@@ -50,24 +51,21 @@ pub struct ConfirmationLinks {
 
 impl TestApp {
     pub async fn get_login_html(&self) -> String {
-        reqwest::Client::new()
+        self.client
             .get(format!("{}/login", self.address))
             .send()
             .await
-            .expect("Failed to execute GET login page request in test.")
+            .expect("Failed to execute GET /login request in test.")
             .text()
             .await
-            .expect("Failed to retreive login page as text in test.")
+            .expect("Failed to decode html to valid text.")
     }
 
     pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
     {
-        reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .expect("Failed to build reqwest client with a no redirect policy in test.")
+        self.client
             .post(format!("{}/login", &self.address))
             .form(body)
             .send()
@@ -75,7 +73,7 @@ impl TestApp {
             .expect("Failed to execute login POST request in test.")
     }
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-        reqwest::Client::new()
+        self.client
             .post(format!("{}/newsletters", &self.address))
             .basic_auth(&self.test_user.username, Some(&self.test_user.password))
             .json(&body)
@@ -106,7 +104,7 @@ impl TestApp {
     }
 
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
-        reqwest::Client::new()
+        self.client
             .post(format!("{}/subscriptions", &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
@@ -120,6 +118,12 @@ pub async fn spawn_app() -> TestApp {
     // INFO: The first time `initialize` is invoked the code in `TRACING` is executed.
     // All other invocations will instead skip execution
     LazyLock::force(&TRACING);
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .expect("Failed to build reqwest::Client in test.");
 
     let email_server = MockServer::start().await;
 
@@ -145,6 +149,7 @@ pub async fn spawn_app() -> TestApp {
         email_server,
         port,
         test_user: TestUser::generate(),
+        client,
     };
     test_app.test_user.store(&test_app.db_pool).await;
     test_app

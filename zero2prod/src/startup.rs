@@ -3,8 +3,7 @@ use crate::email_client::EmailClient;
 use crate::routes::{
     confirm, greet, health_check, home, login, login_form, publish_newsletter, subscribe,
 };
-use actix_web::dev::Server;
-use actix_web::{App, HttpServer, web};
+use actix_web::{App, HttpServer, dev::Server, web};
 use secrecy::SecretString;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::net::TcpListener;
