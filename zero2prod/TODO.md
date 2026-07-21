@@ -79,7 +79,7 @@ Mostly just coding sections
     - [x] Add `ResponseError` implementation of `status_code` for `LoginError`
     - [x] Flesh out the `login` handler to return a result with successful redirect in the `Ok` case and appropriate
        `LoginError` in the `Err` case
-  - [ ] Contextual Errors
+  - [x] Contextual Errors
     - [x] Note trying to render `login.html` in `error_response` trait implementation for `LoginError` with error included.
     - [x] Redirect back to `login_form` handler from `error_response` with errors included as query params i.e. `/login?error={}`
     - [x] Extract error query params in `login_form` via `web::Query` and render the error by formatting them as part of the rendered
@@ -98,6 +98,6 @@ Mostly just coding sections
       - [x] `query` is now `Option<web::Query<QueryParams>>`. Handle accordingly in `login_form`
       - [x] Add and implement `verify` function for `QueryParams`.
       - [x] Call `verify` appropriately in `login_form` handler logging a warning incase verification fails
-    - [ ] Cookie error flash messages
-      - [ ] Add tests
+    - [x] Cookie error flash messages
+      - [x] Add tests
 
