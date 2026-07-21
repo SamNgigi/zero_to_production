@@ -1231,10 +1231,144 @@ We'll need to do the following
 1. Add `get_login_html` test helper that returns a `String`
 2. Call it in our login test and check that the returned html string contains the error message `"Authorization Failed."`
 
+**1. Add `get_login_html`** test helper.
+```Rust
+//! test/api/helpers.rs
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn get_login_html(&self) -> String {
+        reqwest::Client::new()
+            .get(format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET login page request in test.")
+            .text()
+            .await
+            .expect("Failed to retreive login html as text in test.")
+    }
+
+    // [...]
+}
+```
+
+**2. Use the `get_login_html` helper in our `an_error_flash_message_cookie_is_set_on_failure` to check error message is rendered on page.**
+```Rust
+//! test/api/login.rs
+// [...]
+
+#[tokio::test]
+async fn an_error_flash_message_cookie_is_set_on_failure() {
+    // Arrange
+    // [...]
+    
+    // Act & Assert 1
+    // [...]
+    
+    // Act & Assert 2
+    let login_html = app.get_login_html().await;
+    assert!(login_html.contains(r#"<p><i>Authorization Failed.</i></p>"#));
+    
+}
+```
+
+This test should fail because we are not reading our cookie message to render it in the `GET /login` html.
+
+![image.png](10_b_securing_our_api_files/ca7353e5-b41c-4e7f-b23b-68d381ad7bee.png)
+
 #### 10.06.4.12. How To Read A Cookie In `actix-web`
 
 Here we update the `GET /login` handler `login_form` to extract the error flash message from the cookie. We remove our earlier implementation around  
 `QueryParams`.
+
+Our current implementation looks like [this](https://github.com/SamNgigi/zero_to_production/blob/6fe171a004e0721c5febee1ffb5926c03f362ba0/zero2prod/src/routes/login/get.rs).  
+We are still extracting `QueryParams` and verify the error message with `HMACSecret`. We can go ahead and remove this, read and render the error message from the cookes instead.  
+How do we do this?  
+
+By working with `actix_web::HttpRequest` we can use `actix_web`'s cookie API to extract any flash messages that are part of the request. So our `login` handler simplyfies to this.
+```Rust
+//! src/routes/login.rs
+// [...]
+use actix_web::HttpRequest;
+
+#[tracing::instument(/**/)]
+pub async fn login_html(request: HttpRequest) -> HttpResponse {
+    let error_html = match request.cookie("_flash") {
+        None => "".into(),
+        Some(e) = format!("<p><i>{}</i></p>", e.into()),
+    };
+    // [...]
+}
+```
+
+Out test still fails. Why?  
+We if we take a look at our `get_login_html` helper, we are using a new instance of a `reqwest::Client`, therefore we cannot propagate our cookie accross
+`post_login` to `get_login_html`. To fix this we need to
+1. Initialize a shared `client` which is a `request::Client` as part of our `TestApp`. This means we add a `client` field to `TestApp`.
+2. Enable cookie storage in our `reqwest::Client`
+
+To do so we update our `tests/api/helper.rs` as follows.
+```Rust
+//! tests/api/helpers.rs
+//[...]
+
+// [...]
+
+pub struct TestApp {
+    // [...]
+    // New field
+    pub client: reqwest::Client;
+}
+
+impl TestApp {
+    pub async fn get_login_html(/**/) -> String {
+        self.client
+            .get(/**/)
+            // [...]
+    }
+    
+    pub async fn post_login(/**/) -> reqwest::Response {
+        self.client
+            .post(/**/)
+            // [...]
+    }
+    
+    pub async fn post_newsletter(/**/) -> reqwest::Response {
+        self.client
+            .post(/**/)
+            // [...]
+    }
+    
+    pub async fn post_subscription(/**/) -> reqwest::Response   {
+        self.client
+            .post(/**/)
+            // [...]
+    }
+    
+}
+
+pub async fn spawn_app() -> TestApp {
+    // [...]
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cooke_store(true)
+        .build()
+        .expect("Failed to build reqwest::Client in test");
+        
+    // [...]
+
+    let test_app = TestApp {
+        // [...]
+        client
+    };
+
+    // [...]
+}
+```
+
+The test should now pass.
 
 #### 10.06.4.13. How To Delete A Cookie In `actix-web`
 
@@ -1244,13 +1378,256 @@ behavior we;
 2. We check that we don't have authentication errors
 3. We set our cookie to have a max age of zero then use the more ergonomic `add_removed
 
+**1. Update our test to trigger `GET /login` again & 2. Check that cookie is ephimeral**  
+In other words try triggering a fresh login and check that we don't have the `"Authentication Failed."`.  
+How do we do this? We just call `get_login_html` again but this time we check that the error cooke does not exist.
+```Rust
+//! tests/api/login.rs
+// [...]
+
+async fn an_error_flash_message_cookie_is_set_on_failure() {
+    // Arrange
+    // [...]
+    
+    // Act & Assert 1
+    // [...]
+    
+    // Act and Assert 2
+    let login_html = app.get_login_html().await;
+    assert!(
+        login_html.contains(r#"<p><i>Authentication Failed.</i></p>"#),
+        "Error Html Should Be Rendered."
+    );
+
+    // Act and Assert 3
+    let login_html = app.get_login_html().await;
+    assert!(
+        !login_html.contains(r#"<p><i>Authentication Failed.</i></p>"#),
+        "Error Html Should NOT Be Rendered."
+    );
+
+}
+```
+
+Our test should now fail.
+
+![image.png](10_b_securing_our_api_files/c4712b0c-c47e-4b86-89ff-5edf9f3bec20.png)
+
+**3. We set our cookie to have a max age of zero the use more ergonomic API.**.  
+To enforce that our error flash message is actually _ephimeral_ we have to define how long our cookie should exist. To specify an expiration policy either as
+1. `Max-Age` i.e. time to live in terms of seconds. e.g `Set-Cookie: _flash=omg; Max-Age=5;`
+2. `Expire` - i.e. a date`Set-Cookie: _flash=omg; Expires=Thu, 7 July 2026 23:59:59 GMT;`
+
+Setting `Max-Age` to 0 instruct the browser to immediately expire the cookie, which is what we want. To do this we can either set it via 
+1. Calling `max_age` on a `Cookie` when constructing the  `HttpResponse`
+```Rust
+//! src/routes/login/get.rs
+// [...]
+use actix_web::cookie::{Cookie, time::Duration};
+
+#[tracing::instrument(/**/)]
+pub async fn login_form(request: HttpRequest) -> HttpResponse {
+    let error_html = match request.cookie("_flash") {
+        None => "".into(),
+        Some(cookie) => format!("<p><i>{}</i></p>", cookie.value()), 
+    };
+
+    HttpResponse::Ok()
+        .insert_header(ContentType::html())
+        .cookie(Cookie::build("_flash", "").max_age(Duration::ZERO).finish())
+        .body(format!(include_str!("./login.html"), error_html))
+}
+
+```
+2. Calling `add_removal_cookie` on the `HttpResponse`
+
+```Rust
+//! src/routes/login/get.rs
+// [...]
+use actix_web::cookie::Cookie;
+
+#[tracing::instrument(/**/)]
+pub async fn login_form(request: HttpRequest) -> HttpResponse {
+    let error_html = match request.cookie("_flash") {
+        None => "".into(),
+        Some(cookie) => format!("<p><i>{}</i></p>", cookie.value()), 
+    };
+
+    let mut response = HttpResponse::Ok()
+        .content_type(ContentType)
+        .body(format!(include_str!("./login.html"), error_html));
+
+    response.add_removal_cookie(&Content::new("_flash", ""))
+        .expect("Failed due to malformed name in cookie header");
+    
+    response
+}
+```
+
+
 #### 10.06.4.14. Cookie Security
 
+_**Summary**_.  
+What kind of attacks can be mounted against cookies?  
 
+While cookies present a reduced attack surface to XSS attacks compared to query parameters,
+> constructing a clickable link that a naive user can just click and execute malicious code is a little more difficult here.
+
+We still want to ensure that malicious actors cannot
+- _tamper_ with our cookies thus compromising cookie content integrity.
+- _sniff_ our coookie content, compromising the confidentiality.
+
+A must have first line of defense is our request are over a secure encrypted connection (HTTPS) ensuring that communication between server and  
+client cannot be intercepted, read or arbitrarily modified. Marking cookies as `Secure` ensures that the browser only attaches cookies to requests  
+that are sent over secure HTTPS connections.
+
+Second we want to ensure that JavaScript cannot, read and/or [overwrite our cookies](https://www.youtube.com/watch?v=U1DT0Ekswto). Marking cookies as `HTTP-Only` ensures that our cookies are not  
+visible to JavaScript on the  browser cannot see our cookies to modify them.
+
+Lastly cookies are visible to via the Developer tools. Nothing stops a user from freely manipulating their cookies.
+
+Using HMAC to verify our cookie integrity and origin as we did with our query params remains the appropriate and robust solution to ensure 
+our cookies authenticity. Instead of doing the cookie-hmac wiring manually, we lean on the [`actix-web-flash-messages`](https://crates.io/crates/actix-web-flash-messages) crate that makes things
+easier for us. Because we already understand how `HMAC`s work and their purpose.
 
 #### 10.06.4.15. `actix-web-flash-messages`
 
+Primarily use `actix_web_flash_message` to manage cookie flash message by
+- Registering its `FlashMessageFramework` as middleware in our `actix_web` App
+- Adding the appropriate storage for our flash messages which in this case is `CookieMessageStorage`. 
+- `CookieMessageStorage` requires that our messages be signed threfore we have to build it with a `Key` that takes our `secret_key`
+- Now use `FlashMessage::error` to attach our error message as a flash message cookie that we can send as part of our request.
+- Retriving our error message using `IncomingFlashMessages` and filtering according to the appropriate level to populate our `error_html`.
 
+It everything including setting the right properties (`Scecure`, `Http-Only`), setting the appropriate default expiration policy & Hmac wiring.
+
+Let start by wiring our flash messages middleware by completing the first 3 tasks above.
+```Rust
+//! src/startup.rs
+// [...]
+use actix_web_flash_messages::{FlashMessagesFramework, storage::CookieMessageStorage};
+use actix_web::cookie::Key;
+use secrecy::ExposeSecret;
+
+// [...]
+
+// NOTE: We removed the HMACSecret wrapper type.
+
+fn run(/**/) -> Result<Server, std::io::Error> {
+    // [...]
+    let cookie_storage = CookieMessageStorage::builder(
+        Key::from(secret_key.expose_secret().as_bytes())
+    ).build(); // Building our cookie storage with Key
+    let flash_messages = FlashMessagesFramework::builder(cookie_storage).build(); // Adding cookie_storage as our flash_messages storage backend
+    let server = HttpServer::new(move || {
+        App::new()
+            .wrap(flash_messages.clone()) // registering the flash messages as middleware
+            .wrap(TracingLogger::default())
+            // [...]
+    })
+}
+```
+
+Then in our `POST /login` handler `login` we use `FlashMessage` to send over our error cookies.
+```Rust
+//! src/routes/login/post.rs
+// [...]
+use actix_web_flash_messages::FlashMessages;
+
+#[tracing::instrument(/**/)]
+pub async fn login(/**/) -> Result<HttpResponse, InternalError<LoginError>> {
+    // [...]
+    match validate_credentials(/**/) {
+        Ok(/**/) => {/**/}
+        Err(e) =>  {
+            let e = match e {
+                AuthError::InvalidCredentials(_) => LoginError::AuthenticationFailed(e.into()),
+                AuthError::Unexpected(_) => LoginError::Unexpected(e.into()),
+            };
+            // Sending our error flash with all the appropriate properties set under the hood.
+            FlashMessages::error(e.to_string()).send(); 
+            
+            let response = HttpResponse::SeeOther()
+                .insert_header((LOCATION, "/login"))
+                // No setting cookies here now.
+                .finish();
+            Err(InternalError::from_response(e, response));
+        } 
+    }
+}
+```
+
+In our `GET /login` handler `login_form` we now check if we have any error flash message cookie that we can render in the login html.
+```Rust
+//! src/routes/login/get.rs
+// [...]
+use actix_web_flash_messages::{IncomingFlashMessages, Level};
+use std::fmt::Write;
+
+pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
+    let mut error_html = String::new();
+    for msg in flash_messages.iter().filter(|msg| msg.level() == Level::Error) {
+        writeln!(error_html, "<p><i>{}</i></p>", msg.content()).expected("Failed to write error flash message to error_html.");
+    }
+    HttpResponse::Ok()
+        .content_type(ContentType::html())
+        // No cookie removal
+        .body(format!(include_str!("./login.html"), error_html))
+}
+```
+
+Our tests should remain passing. But it seems there's one failing
+
+![image.png](10_b_securing_our_api_files/d6c8a0d1-cf64-4989-8141-b0a323b45bdb.png)
+
+Right. The one where we were checking equality of the error message contained in the cookie
+
+
+```Rust
+//! tests/api/login.rs
+// [...]
+// No need for HeaderValue and Hashset now
+
+#[tokio::test]
+async fn an_error_flash_message_cookie_is_set_on_failure() {
+    // [...]
+    
+    // Act and Assert 1
+    // [...]
+    let flash_message = response.cookies().find(|c| c.name() == "_flash").expect("Failed to get cookie by provided name");
+    assert_eq!(flash_message.value(), "Authentication Failed.");
+
+    // Act and Assert 2
+    // [...]
+    
+    // Act and Assert 3
+    // [...]
+
+}
+```
+
+That assertion now sits too close to the implementation details. We can go ahead and remove it.
+```Rust
+//! tests/api/login.rs
+// [...]
+// No need for HeaderValue and Hashset now
+
+#[tokio::test]
+async fn an_error_flash_message_cookie_is_set_on_failure() {
+    // [...]
+    
+    // Act and Assert 1
+    // No assertion on equality of cookie error message
+    assert_on_redirect(&response, "/login");
+    
+    // Act and Assert 2
+    // [...]
+    
+    // Act and Assert 3
+    // [...]
+
+}
+```
 
 ## 10.07. Sessions.
 
