@@ -91,6 +91,7 @@ Mostly just coding sections
       - [x] Refactor error redirection back to `login` hander from the `error_response` to allow passing of the `secret_key`
             used for creating hmac tag
       - [x] Wireup `secret_key` as part of application state from configs to `startup.rs` to `login`.
+      - [ ] TODO IN PRODUCTION: ADD SECRET KEY
       - [x] Wrap `LoginError` as part of `actix_web::error::InternalError`
       - [x] Wrap `secret_key` in a `HMAC` type when injecting it into app state
     - [x] Verifying The HMAC Tag
@@ -99,5 +100,31 @@ Mostly just coding sections
       - [x] Add and implement `verify` function for `QueryParams`.
       - [x] Call `verify` appropriately in `login_form` handler logging a warning incase verification fails
     - [x] Cookie error flash messages
-      - [x] Add tests
+      - [x] Add initial implementation `an_error_flash_message_cookie_is_set_on_failure` test.
+      - [x] Add `get_login_html` test helper where we'll read our error flash messages cookies.
+      - [x] Update `TestApp` to include a `client: reqwest::Client` field that will help us persist a cookie set across multiple sessions.
+      - [x] Make our flash message cookie ephemiral by setting `Max-Age` to 0.
+      - [x] Make our flash message cookie secure by using `actix-web-flash-messages` crate as our middleware for handling cookies.
+- [ ] Sessions
+  - [ ] Why Redis as a session Store? In Memory RAM storage that provides rapid access to a session + native support for expiration
+  - [ ] `actix-session`
+    - [ ] Add `actix-session` with `redis-session-rustls` feature.
+    - [ ] Add `scripts/init_redis.sh` for adding reddis to our application via docker.
+    - [ ] TODO IN PRODUCTION: ADD REDIS
+    - [ ] Wire up `actix-session`'s `SessionMiddlewar` in `startup.rs`'s `run` routine
+    - [ ] Wire up redis from `base_configuration.yaml` to `config.rs`.
+  - [ ] Admin Dashboard
+    - [ ] Add `redirect_to_dashboard_after_login_success` test
+      - [ ] Add `get_admin_dashboard_html` test helper
+      - [ ] Update `login` hander to do appropriate redirection on successful login 
+        - [ ] insert `user_id` in session state to pass to `admin_dashboard` handler
+        - [ ] Add `redirect_to_login` helper in `src/routes/login/post.rs` that handles redirects to login when login attempts fail
+      - [ ] Add `admin_dashboard` handler
+        - [ ] Wire up handler to routes in `startup.rs`
+        - [ ] Add an initial `admin_dashboard.html` with welcom message
+        - [ ] Add an opaque `e500` helper functions that handles
+          - [ ] Unexpected errors from getting `user_id` from session.
+          - [ ] Unexpected errors from  `get_username` function that returns `username` from db given `user_id`
+        - [ ] Update response to pass `username` to `admin_dashboard.html`.
+        - [ ] Update `login` handler with `session.renew` before inserting `user_id` into the session.
 

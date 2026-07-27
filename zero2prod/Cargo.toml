@@ -38,6 +38,7 @@ html-escape = "0.2.14"
 hmac = "0.13.0"
 sha2 = "0.11.0"
 actix-web-flash-messages = { version = "0.5.0", features = ["cookies"] }
+actix-session = { version = "0.11.0", features = ["redis-session-rustls"] }
 
 [dev-dependencies]
 claims = "0.8.0"
