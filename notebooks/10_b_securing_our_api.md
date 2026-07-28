@@ -1768,6 +1768,160 @@ So we use Redis for our session management modelling the `session_token` as a ke
 
 ### 10.07.4. `actix-session`
 
+#### 10.07.4.0. Oveview
+
+_**Summary**_  
+- Add the `actix-session` crate with `redis-session-rustls` feature enabled.
+- Wire up `actix-session`'s  `SessionMiddleware` to `actix-web`'s server. It requires a `session_store` and `secret_key`
+- Add the `redis_url` to `config.rs`'s  `Settings`.
+- Add the `redis_url` as a parameter to `run` in `startup.rs`. It is required to build `actix-session`'s `SessionMiddleware`
+
+**1. Add `actix-session` crate with `redis-session-rustls` feature enabled**.  
+```bash
+cargo add actix-session --feature redis-session-rustls
+```
+
+**2. Add `actix-session`'s `SessionMiddleware` to  `startup.rs`'s `Server` via `.wrap`.**  
+The key type we want to make use of is `SessionMiddleware` that takes care of
+- Loading a session
+- Tracking session state
+- Persisting them (state) at the end of the request/response lifecyle
+
+The `SessionMiddleware` instance requires a storage backend and a secret key for signing (or encrypting) the session cookie.  
+For storage we enabled the `redis-session-rustls` that allows us to access the `RedisSessionStorage` type that we'll use to register our  
+session storage backend.
+
+We need to initialize a `RedisSessionStorage` with a `redis_uri`. Using redis for session storage introduces I/O to our `run` method in `startup.rs`  
+and because we have to `await` the creation/initialization of our session store we need to convert the `run` method into an async function returning
+an `anyhow::Error` instead of the original `std::io::Error`.
+
+This means be have to await `run` at the call site `build` and thus `build` itself also has to now return an `anyhow::Error` that capture any propagatted  
+errors appropriately.
+
+Lets change up the steps a bit and 
+- Wire the `redis_uri` from the `configurations/base_config.yaml`
+- Add the field to `config.rs`'s `Settings`.
+- Pass the `redis_uri` as an argument to `run`'s call site ,`build` in `startup.rs`
+- Add the `redis_uri` param to `run`'s definition'
+- Initialize `RedisSessionStorage` with the `redis_uri`
+- Add `SessionMiddleWare` as middleware to our server with the required `session_storage` and `secret_key`.
+
+**a. Wire the `redis_uri` from the `configurations/base_config.yaml`**
+
+```yaml
+# configurations/base.yaml
+# [...]
+redis_uri: "redis:://127.0.0.1:6379"
+```
+
+
+**b. Add the field to `config.rs`'s `Settings`.**  
+```Rust
+//! src/config.rs
+// [...]
+
+#[derive(Deserialize, Clone)]
+pub struct Settings {
+    // [...]
+    pub redis_uri: SecretString,
+}
+```
+
+
+**- Everything else is in `startup.rs` so we do everything in one go.**
+```Rust
+//! src/startup.rs
+// [...]
+use actix_session::{SessionMiddleware, storage::RedisSessionStore};
+
+impl Application {
+    
+    // We update build to an async function that returns anyhow::Error in the error case
+    pub async fn build(config: Setting) -> Result<Self, anyhow::Error> {
+        // [...]
+        let server = run(
+            // [...]
+            config.redis_uri,
+        ).await?;
+        // [...]
+    }
+
+    // [...]
+    
+}
+
+// We update build to an async function that returns anyhow::Error in the error case
+async fn run(
+    // [...]
+    secret_key: SecretString,
+    redis_uri: SecretString,
+) -> Result<Server, anyhow::Error> {
+    // [...]
+    let secret_key = Key::from(secret_key.expose_secret().as_bytes());
+    let cookie_storage = CookieMessageStore::builder(secret_key.clone()).build();
+    // [...]
+    let session_storage = RedisSessionStorage::new(redis_uri.expose_secret()).await?;
+    let server = HttpServer::new(move || {
+        App::new()
+            .wrap(flash_message_frameware.clone())
+            .wrap(SessionMiddleware::new(session_storage.clone(), secret_key.clone()))
+            .wrap(TracingLogger::default())
+            // [...]
+    })
+    // [...]
+    
+}
+```
+
+We also need to update `main.rs` as well to be async now.  
+```Rust
+//! src/main.rs
+
+#[actix_web::main]
+// anyhow::Result now instead of std::io::Error
+async fn main() -> anyhow::Result<()> {
+    // [...]
+}
+```
+
+#### 10.07.4.0. Redis In Our Development Setup
+
+On dev we'll use docker for redis with a pretty similar approach to what we did for postgres with a `init_redis.sh`.  
+```bash
+#! scripts/init_redis.sh
+#!/usr/bin/env bash
+
+set -x
+set -eo pipefail
+
+DB_NAME="${REDIS_DB:=newsletter}"
+
+if [[ -z "${SKIP_DOCKER}" ]];
+then
+   RUNNING_REDIS_CONTAINER=$(docker ps --filter 'name=redis' --format '{{.ID}}') 
+   if [[ -n "${RUNNING_REDIS_CONTAINER}" ]]; then
+       echo >&2 "There is a redis container already running, kill it with"
+       echo >&2 "    docker kill ${RUNNING_REDIS_CONTAINER}"
+       exit 1
+    fi
+    
+    docker run \
+    -p "6379:6379" \
+    -d \
+    --name "${DB_NAME}_actix_redis" \
+    redis:8
+fi
+>&2 echo "Redis is ready to go!"
+```
+
+We make the script executable and then run the script  
+```bash
+chmod +x ./scripts/init_redis.sh
+./scripts/init_redis.sh
+```
+
+#### 10.07.4.1. Redis On Fly.io (TODO)
+
 
 
 ### 10.07.5. Admin Dashboard
