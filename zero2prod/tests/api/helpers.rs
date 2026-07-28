@@ -50,6 +50,17 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        self.client
+            .get(format!("{}/admin_dashboard", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET request to /admin_dashboard in test")
+            .text()
+            .await
+            .expect("Failed to decode admin_dashboard html to valid utf8 text string")
+    }
+
     pub async fn get_login_html(&self) -> String {
         self.client
             .get(format!("{}/login", self.address))

@@ -9,11 +9,13 @@ async fn redirects_to_admin_dashboard_on_successful_login() {
         "password": app.test_user.username,
     });
 
-    // NOTE: Act
+    // NOTE: Act & Assert 1
     let response = app.post_login(&login_request).await;
-
-    // NOTE: Assert
     assert_on_redirect(&response, "/admin_dashboard");
+
+    // NOTE: Act & Assert 1
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}", app.test_user.username)));
 }
 
 #[tokio::test]
