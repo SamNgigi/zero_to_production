@@ -10,7 +10,8 @@ use crate::{
     config::{DBSettings, Settings},
     email_client::EmailClient,
     routes::{
-        confirm, greet, health_check, home, login, login_form, publish_newsletter, subscribe,
+        admin_dashboard, confirm, greet, health_check, home, login, login_form, publish_newsletter,
+        subscribe,
     },
 };
 
@@ -99,6 +100,7 @@ async fn run(
             .route("/home", web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
+            .route("/admin_dashboard", web::get().to(admin_dashboard))
             .route("/{name}", web::get().to(greet))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
