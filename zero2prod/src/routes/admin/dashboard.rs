@@ -1,7 +1,10 @@
 use actix_web::{
     HttpResponse,
     error::InternalError,
-    http::{StatusCode, header::ContentType},
+    http::{
+        StatusCode,
+        header::{ContentType, LOCATION},
+    },
     web,
 };
 use anyhow::Context;
@@ -24,7 +27,9 @@ pub async fn admin_dashboard(
     let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
         get_username(&db_pool, user_id).await.map_err(e500)?
     } else {
-        todo!()
+        return Ok(HttpResponse::SeeOther()
+            .insert_header((LOCATION, "/login"))
+            .finish());
     };
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
