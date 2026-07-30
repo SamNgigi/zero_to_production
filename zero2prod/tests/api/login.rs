@@ -13,9 +13,9 @@ async fn redirects_to_admin_dashboard_on_successful_login() {
     let response = app.post_login(&login_request).await;
     assert_on_redirect(&response, "/admin_dashboard");
 
-    // NOTE: Act & Assert 1
+    // NOTE: Act & Assert 2
     let admin_dashboard_html = app.get_admin_dashboard_html().await;
-    assert!(admin_dashboard_html.contains(&format!("Welcome {}", app.test_user.username)));
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}", app.test_user.username)))
 }
 
 #[tokio::test]

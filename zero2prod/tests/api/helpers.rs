@@ -51,14 +51,19 @@ pub struct ConfirmationLinks {
 
 impl TestApp {
     pub async fn get_admin_dashboard_html(&self) -> String {
-        self.client
-            .get(format!("{}/admin_dashboard", &self.address))
-            .send()
+        self.get_admin_dashboard()
             .await
-            .expect("Failed to execute GET request to /admin_dashboard in test")
             .text()
             .await
-            .expect("Failed to decode admin_dashboard html to valid utf8 text string")
+            .expect("Failed to decode html to valid text.")
+    }
+
+    pub async fn get_admin_dashboard(&self) -> reqwest::Response {
+        self.client
+            .get(format!("{}/admin_dashboard", self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET /admin_dashboard request in test")
     }
 
     pub async fn get_login_html(&self) -> String {

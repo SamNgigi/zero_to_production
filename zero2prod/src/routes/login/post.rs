@@ -1,3 +1,4 @@
+use actix_session::Session;
 use actix_web::{HttpResponse, error::InternalError, http::header::LOCATION, web};
 use actix_web_flash_messages::FlashMessage;
 use secrecy::SecretString;
@@ -21,12 +22,13 @@ pub struct FormData {
 
 #[tracing::instrument(
     name = "Login Credential Validation", 
-    skip(db_pool, form),
+    skip(db_pool, form, session),
     fields(username = tracing::field::Empty, user_id = tracing::field::Empty),
 )]
 pub async fn login(
     db_pool: web::Data<PgPool>,
     form: web::Form<FormData>,
+    session: Session, // new params
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -37,6 +39,9 @@ pub async fn login(
     match validate_credentials(&db_pool, credentials).await {
         Ok(user_id) => {
             tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+            session
+                .insert("user_id", user_id)
+                .map_err(|e| redirect_to_login(LoginError::Unexpected(e.into())))?;
             Ok(HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/admin_dashboard"))
                 .finish())
@@ -47,13 +52,15 @@ pub async fn login(
                 AuthError::Unexpected(_) => LoginError::Unexpected(e.into()),
             };
 
-            FlashMessage::error(e.to_string()).send();
-
-            let response = HttpResponse::SeeOther()
-                .insert_header((LOCATION, "/login"))
-                .finish();
-
-            Err(InternalError::from_response(e, response))
+            Err(redirect_to_login(e))
         }
     }
+}
+
+fn redirect_to_login(e: LoginError) -> InternalError<LoginError> {
+    FlashMessage::error(e.to_string()).send();
+    let response = HttpResponse::SeeOther()
+        .insert_header((LOCATION, "/login"))
+        .finish();
+    InternalError::from_response(e, response)
 }
