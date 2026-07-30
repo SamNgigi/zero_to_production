@@ -127,4 +127,9 @@ Mostly just coding sections
           - [ ] Unexpected errors from  `get_username` function that returns `username` from db given `user_id`
         - [ ] Update response to pass `username` to `admin_dashboard.html`.
         - [ ] Update `login` handler with `session.renew` before inserting `user_id` into the session.
-
+        - [ ] Add `you_must_be_logged_in_to_access_admin_dashboard` test
+          - [ ] Split out `get_admin_dashboard` from `get_admin_dashboard_html` that we'll call in the test above
+        - [ ] Add redirect to `login` if `user_id` was not part of the session.
+        - [ ] Implement a custom `TypedSession` to wrap `actix_session`'s `Session`
+          - [ ] Implement `TypeSession` as a custom `actix_web` extractor
+          - [ ] Update `login` and `admin_dashboard` handlers to use `TypedSession`
