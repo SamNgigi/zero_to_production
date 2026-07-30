@@ -1922,29 +1922,498 @@ chmod +x ./scripts/init_redis.sh
 
 #### 10.07.4.1. Redis On Fly.io (TODO)
 
-
+Find initial guided walkthrough of the Redis setup [here](https://claude.ai/share/3d1c4e98-0488-4046-b776-b6a9834873df).
 
 ### 10.07.5. Admin Dashboard
 
 #### 10.7.5.0. Overview
 
+_**Summary**_  
 
+Adding a simple initial admin dashboard html page with a `Welcome {username}` that a successfully authenticated user is redirected to.  
+We use `actix-session`'s  `Sessions` to get the pass the `user_id` from `login` handler to the `admin_dashboard` handler in order to fetch  
+the logged in user from the database and return their username to be displayed in the `admin_dashboard.html`. We use TDD to implement and  
+ensure the desired behavior. 
+
+Below is a breakdown of the steps/tasks
+
+1. Adds `redirects_to_admin_dashboard_on_successful_login` test. Test should fail.
+2. Update `login` handler to redirect to `/admin_dashboard` on successful login. Test should pass.
+3. Update test in step 1 to assert on `admin_dashboard.html` content that it contains `username`.
+    - Adds `get_admin_dashboard` test helper
+    - Adds `get_admin_dashboard_html` test helper
+4. Add initial `admin_dashboard` handler and `admin_dashboard.html`.
+5. Update `login` handler to insert `user_id` to `session` via `actix_session::Session`.
+6. Add `redirect_to_login` helper.
+7. Extract `user_id` from session in `admin_dashboard` handler in `src/routes/admin/admin_dashboard.rs`and add `e500` error helper to handle extraction failure mode.
+8. Implement and call `get_username` to fetch `username` from database if `user_id` is in session.
+9.  Add `session.renew()` to `login` handler to prevent session fixation attacks
+10. Implement a our own custom `TypedSession` that wraps `actix-session` Session.
+11. Make `TypedSession` and custom `actix-web` extractor by implementing `FromRequest` on it.
+12. Update `login` and `admin_dashboard` handlers to use `TypedSession` instead of `Session`.
+13. Add `you_must_be_logged_it_to_access_admin_dashboard` test
+14. Add `get_admin_dashboard` helper that we can now call in `get_admin_dashboard_html`.
+    > Separates the `GET /admin_dashboard` request via `get_admin_dashboard` test helper from returning the admin dashboard html with `get_admin_dashboard_html`
+15. Redirect to `login` if `user_id` was not part of the session.
 
 #### 10.7.5.1. Redirect On Login Success
 
+_**Summary**_  
+Primarily ensuring successfully authenticated users are redirected to the admin dashboard by
 
+**1. Adding `redirects_to_admin_dashboard_on_successful_login`. Test should fail**  
+
+```Rust
+//! tests/api/login.rs
+// [...]
+
+#[test::tokio]
+async fn redirects_to_admin_dashboard_on_successful_login() {
+    // Arrange
+    let app = spawn_app().await;
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.username,
+    });
+    
+    // Act
+    let response = app.post_login(&login_request).await;
+    
+    // Assert
+    assert_on_redirect(&response, "/admin_dashboard");
+    
+}
+```
+
+![image.png](10_b_securing_our_api_files/ca960008-9e1f-400b-a1e3-6d21a2a83954.png)
+
+**2. Update `login` handler to redirect to `/admin_dashboard` on successful login. Test should pass.**  
+```Rust
+//! src/routes/login/post.rs
+// [...]
+
+#[tracing::instrument(/**/)]
+pub async fn login(/**/) -> Result<HttpResponse, InternalError<LoginError>> {
+    // [...]
+    match validate_credentials(/**/) {
+        Ok(user_id) => {
+            // [...]
+            Ok(HttpResponse::SeeOther()
+                  .insert_header((LOCATION, "/admin_dashboard"))
+                  .finish())
+        }
+        Err(e) => {/**/}
+    }
+}
+```
+
+Now the redirect works. Next we want to ensure that admin dashboard has the `username`. So we update our test to assert this
+
+**3. Update test in step 1 to assert on `admin_dashboard.html` content that it contains `username`.** 
+> For this we'll need to add a `get_admin_dashboard_html` test helper
+    
+**4. Adding `get_admin_dashboard_html` test helper**
+> Because we know that we'll need to separate the `GET /admin_dashboard` request with returning the html we'll also include step 14
+> splitting the implementation from the start.
+
+**14. Separate the `GET /admin_dashboard` request via `get_admin_dashboard` test helper from returning the admin dashboard html with `get_admin_dashboard_html`**
+
+Alright lets add the helpers.
+```Rust
+//! tests/api/helper.rs
+//! [...]
+
+// [...]
+
+impl TestUser {
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        self.get_admin_dashboard()
+            .text()
+            .await
+            .expect("Failed to decode html to valid text in test")
+    }
+
+    pub async fn get_admin_dashboard(&self) -> reqwest::Response {
+        self.client
+            .get(format!("{}/admin_dashboard", self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET /admin_dashboard request in test")
+    }
+
+    // [...]
+}
+```
+
+```Rust
+//! tests/api/login.rs
+// [...]
+
+#[tokio::test]
+async fn redirects_to_admin_dashboard_on_successful_login() {
+    // [...]
+    let admin_dashboard_html = self.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}", app.test_user.username)));
+}
+```
+
+The test should fail with the below error response.
+
+![image.png](10_b_securing_our_api_files/a557220f-5a49-4afe-bbf1-7fd3d3d6d724.png)
+
+Alright let get to the meat.
 
 #### 10.7.5.2. Sessions
 
+_**Summary**_  
+To get the test above to pass We'll need to 
 
+4. Add initial `admin_dashboard` handler and `admin_dashboard.html`.
+5. Update `login` handler to insert `user_id` to `session` via `actix_session::Session`.
+6. Add `redirect_to_login` helper.
+7. Extract `user_id` from session in `admin_dashboard` handler in `src/routes/admin/admin_dashboard.rs`and add `e500` error helper to handle extraction failure mode.
+8. Implement and call `get_username` to fetch `username` from database if `user_id` is in session.
+9.  Add `session.renew()` to `login` handler to prevent session fixation attacks
+
+Alot to do. Lets get to it.
+
+**4. Add `admin_dashboard.html` and `admin_dashboard` handler.**   
+We need to add a new `admin` module.
+```bash
+$ mkdir src/routes/admin && touch src/routes/admin/admin_dashboard.{rs,html}
+$ touch src/routes/admin/mod.rs
+```
+Then wire it up. Then lets add the `admin_dashboard.html`.
+
+```HTML
+<!--src/routes/login/admin/admin_dashboard.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html" charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+</head>
+<body>
+  <p>Welcome {username}</p>
+</body>
+</html>
+```
+
+Then the `admin_dashboard.rs`
+```Rust
+//! src/routes/admin/admin_dashboard.rs
+use actix_web::HttpResponse;
+
+pub async fn admin_dashboard() -> HttpResponse {
+    let username = String::new();
+    HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(format!(include_str!("./admin_dasboard.html"), username = username))
+}
+```
+
+Make sure to wire this up to the app routes in `startup.rs`.
+
+**5. Update `login` handler to insert `user_id` to `session` via `actix_session::Session`.**  
+> We combine this with step 6 adding `redirect_to_login` helper.
+
+**6. Adding `redirect_to_login` helper.**
+
+```Rust
+//! src/routes/login/post.rs
+//! [...]
+use actix_session::Session;
+
+#[tracing::instrument(/**/, skip(/**/, session))]
+pub async fn login(
+    // [...]
+    session: Session,
+) -> Result<HttpResponse, InternalError<LoginError>> {
+    // [...]
+    match validate_credentials(/**/) {
+        Ok(user_id) => {
+            // [...]
+            session.insert("user_id", user_id).map_err(|e| redirect_to_login(LoginError::Unexpected(e.into())))?;
+            Ok(HttpResponse::SeeOther()
+                  .insert_header((LOCATION, "/admin_dashboard"))
+                  .finish())
+        }
+        Err(e) => {
+            // [...]
+            Err(redirect_to_login(e))
+        }
+    }
+}
+
+fn redirect_to_login(e: LoginError) -> InternalError {
+    FlashMessage::error(e.to_string()).send();
+    let response = HttpResponse::SeeOther()
+            .insert_header((LOCATION, "/login"))
+            .finish();
+    InternalError::from_response(e, response)
+} 
+```
+
+So what does `session.insert` actually do?  
+All operations performed against `Session` are executed in memory $\textemdash$ they do not affect the state of the session as seen by the storage backend.  
+After the handler returns a response, `SessionMiddleware` will inspect the in-memory state of `Session` $\textemdash$ if it changed, it will call Redis to update (or create) 
+the state. It will also take care of setting a session cookie on the client, it there wasn't one already. 
+
+**7. Extract `user_id` from session in `admin_dashboard` handler in `src/routes/admin/admin_dashboard.rs`and add `e500` error helper to handle extraction failure mode.**
+> We'll combine this with step 8 Implement and call `get_username` to fetch `username` in one unit
+
+**8. Implement and call `get_username` to fetch `username` from database if `user_id` is in session.**
+```Rust
+//! src/routes/admin/admin_dashboard.rs
+// [...]
+use actix_session::Session;
+use actix_web::{http::StatusCode, web};
+use sqlx::PgPool;
+use uuid:Uuid;
+
+fn e500<E>(e: E) -> InternalError<E> 
+where E: std::fmt::Debug + std::fmt::Display + 'static
+{
+    InternalError::new(e, StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+pub async fn admin_dashboard(
+    db_pool: web::Data<PgPool>,
+    session: Session,
+) -> Result<HttpResponse, actix_web::Error> {
+    let username = if let Some(user_id) = session .get::<Uuid>("user_id").map_err(e500)? {
+        get_username(user_id).await.map_err(e500)?
+    } else {
+        todo!()
+    };
+
+    Ok(HttpResponse::Ok()
+          .content_type(ContentType::html())
+          .body(format!(include_str!("./admin_dashboard.html"), username=username)))
+}
+
+async fn get_username(db_pool: &PgPool, user_id: Uuid ) -> Result<String, anyhow::Error> {
+    let row = sqlx::query!(
+        r#"
+            SELECT username
+                FROM users
+            WHERE user_id = $1
+        "#,
+        user_id,
+    )
+    .fetch_one(db_pool)
+    .await
+    .context("Failed to execute SQL to retrieve username.")?;
+
+    Ok(row.username)
+}
+```
+
+With this the test should pass, if the `admin_dashboard` handler has been wired up to `startup.rs`.
+
+However our current implementation does not secure a user from a [session fixation attack](https://owasp.org/www-community/attacks/Session_fixation) 
+where an attacker uses a valid session ID and use it to gain access to a user session that is not their own.  
+
+To prevent this we need our application to rotate session ids such that an authentication generates a new session token that invalidates the original token that accompanied a request. Meaning every "new" session has a different session token associated with it.
+
+The `Session` API makes it simple for us. We just need to call `session.renew()` to be able to rotate session tokens.  
+
+**9.  Add `session.renew()` to `login` handler to prevent session fixation attacks**
+```Rust
+//! src/routes/login/post.rs
+// [...]
+
+#[tracing::instrument(/**/)]
+pub async fn login(/**/) -> Result<HttpResponse, InternalError<LoginError>> {
+    match validate_credentials(/**/) {
+        Ok(user_id) => {
+            // [...]
+            session.renew();
+            session.insert("user_id").map_err(|e| redirect_to_login(LoginError::Unexpected(e.into)))?;
+            // [...]
+        }
+        // [...]
+    }
+}
+```
+
+Note that the `session.renew()` has to come before the `session.insert` to ensure a new token is attached to the session.
 
 #### 10.7.5.3. A Type Interface To Sessions
 
+_**Summary**_  
+All right, our tests pass and we've address **session fixation**. Can we do better?  
+Yes.  
+We can make the `Session` type more robust unable to have invalid states like a typo on the user id key that result in an error.  
+We can ensure that inserting a `user_id` and getting the `user_id` in a session cause an error by using the session wrongly for this use case.
 
+How does this look like and how do we wire it up?  
+It requires the next 3 steps
+
+10. Implement a our own custom `TypedSession` that wraps `actix-session` Session.
+11. Make `TypedSession` and custom `actix-web` extractor by implementing `FromRequest` on it.
+12. Update `login` and `admin_dashboard` handlers to use `TypedSession` instead of `Session`.
+
+**10. Implement a our own custom `TypedSession` that wraps `actix-session` Session.**  
+> We'll combine this with step 11. Make `TypedSession` and custom `actix-web` extractor by implementing `FromRequest` on it.
+> This is so that we can be able to use it the same way we are use `actix_session::Session` in the handlers 'login' and `admin_dashboard` handler.
+
+**11. Make `TypedSession` and custom `actix-web` extractor by implementing `FromRequest` on it.**  
+
+We'll need to add a `src/session_state.rs`
+
+```Rust
+//! src/session_state.rs
+use actix_session::{Session, SessionExt, SessionInsertError, SessionGetError};
+use actix_web::{dev::Payload, HttpRequest, FromRequest};
+use std::future::(Ready, ready);
+
+pub struct TypedSession(Session);
+
+impl TypedSession {
+
+    const USER_ID_KEY: &'static str = "user_id";
+    
+    pub fn renew(&self) {
+        self.0.renew()
+    }
+
+    pub fn insert_user_id(&self, user_id: Uuid) -> Result<(), SessionInsertError> {
+        self.0.insert(Self::USER_ID_KEY, user_id)
+    }
+
+    pub fn get_user_id(&self) -> Result<Optional<Uuid>, SessionGetError> {
+        self.0.get::<Uuid>(Self::USER_ID_KEY)
+    }
+}
+
+impl FromRequest for TypedSession {
+    // Complicated way of saying
+    // "return the same error type implemented for `FromRequest` for actix-session `Session`"
+    type Error = <Sesssion as FromRequest>::Error;
+
+    // Although rust now has native support for async trait functions, actix-web
+    // has not ported their `FromRequest` implementation to use it. Therefore the `FromRequest`
+    // from_request implementation expects a `Future` as a return type. So we wrap our 
+    // `TypedSession` in a Ready, Result because we are not doing any async I/O. We want
+    // it to return a value the first time its polled by the executor.
+    type Future = Ready<Result<TypedSession, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        ready(Ok(TypedSession(req.get_session())))
+    }
+}
+```
+
+We can then;
+
+**12. Update `login` and `admin_dashboard` handlers to use `TypedSession` instead of `Session`.**  
+```Rust
+//! src/routes/login/post.rs
+// [...]
+use crate::TypedSession;
+
+#[tracing::instrument(/**/)]
+pub async fn login(
+    // [...]
+    session: TypedSession,
+) -> Result<HttpResponse, InternalError<LoginError>> {
+    // [...]
+    match validate_credentials(/**/) {
+        Ok(user_id) => {
+            // [...]
+            session.renew();
+            session.insert_user_id(user_id).map_err(|e| redirect_to_login(Login::Unexpected(e.into())))?;
+            // [...]
+        }
+    }
+}
+
+
+//! src/routes/admin/dashboard.rs
+// [...]
+use crate::TypedSession;
+
+// [...]
+
+#[tracing::instrument(/**/)]
+pub async fn admin_dashboard(
+    // [...]
+    session: TypedSession,
+) -> Result<HttpResponse, actix_web::Error> {
+    let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
+        // [...]
+    } else {
+        todo!()
+    };
+
+    // [...]
+}
+```
+
+The tests should still pass. We've just made using sessions less error prone by leveraging Rust's type system.
 
 #### 10.7.5.4. Reject Unauthenticated Users
 
+_**Summary**_  
+What about when a user tries to access the admin dashboard page directly without login in first? We definitely want them to be redirected to the login page.
+That's the `todo!()` above that we are now getting to.
 
+Only steps remaining are;
+
+13. Add `you_must_be_logged_it_to_access_admin_dashboard` test
+15. Redirect to `login` if `user_id` was not part of the session in `admin_dashboard`.
+
+Let's add the test to ensure we get the behavior we want.  
+**13. Add `you_must_be_logged_it_to_access_admin_dashboard` test.**  
+```Rust
+//! tests/api/login.rs
+// [...]
+
+#[tokio::test]
+async fn you_must_be_logged_in_to_access_admin_dashboard() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    // Act
+    let response = get_admin_dashboard().await;
+    
+    // Assert
+    assert_on_redirect(&response, "/login");
+    
+}
+```
+
+Our test should fail
+
+![image.png](10_b_securing_our_api_files/7b0c05fa-0bd7-455c-90e6-e27144ae5c1f.png)
+
+Lets update the `admin_dashboard` handler.  
+
+**15. Redirect to `login` if `user_id` was not part of the session in `admin_dashboard`.**  
+```Rust
+//! src/routes/admin/dashboard.rs
+// [...]
+use actix_web::header::LOCATION;
+
+// [...]
+
+#[tracing::instrument(/**/)]
+pub async fn admin_dashboard(/**/) -> Result<HttpResponse, actix::Error> {
+    let username = if let Some(user_id) = session.get_user_id() {
+        // [...]
+    } else {
+        Ok(HttpResponse::SeeOther()
+              .insert_header((LOCATION, "/login"))
+              .finish())
+    };
+
+    // [...]
+}
+```
+
+Our test should pass.
 
 ## 10.08. Seed Users.
 
