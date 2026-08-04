@@ -226,7 +226,7 @@ async fn configure_db(config: &DBSettings) -> PgPool {
 pub struct TestUser {
     user_id: Uuid,
     pub username: String,
-    password: String,
+    pub password: String,
 }
 
 impl TestUser {
@@ -235,8 +235,8 @@ impl TestUser {
         Self {
             user_id: test_user,
             username: test_user.to_string(),
-            password: test_user.to_string(),
-            // password: "everythinghastostartfromsomewhere"
+            // password: test_user.to_string(),
+            password: "everythinghastostartfromsomewhere".into(),
         }
     }
 

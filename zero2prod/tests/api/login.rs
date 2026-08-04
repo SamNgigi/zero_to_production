@@ -18,7 +18,7 @@ async fn redirects_to_admin_dashboard_on_successful_login() {
     let app = spawn_app().await;
     let login_request = serde_json::json!({
         "username": app.test_user.username,
-        "password": app.test_user.username,
+        "password": app.test_user.password,
     });
 
     // NOTE: Act & Assert 1
