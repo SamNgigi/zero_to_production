@@ -134,7 +134,7 @@ Mostly just coding sections
           - [x] Update `login` and `admin_dashboard` handlers to use `TypedSession`
 - [ ] Seed Users
   - [ ] Database Migration
-   - [x] Create new migration to create default user
+    - [x] Create new migration to create default user
     - [x] Generate `Uuidv7` for `user_id`, `admin` for `username` and PHC String format password hash for `password_hash`.
     - [x] Populate SQL query with the above values for inserting users.
     - [x] Run migration
