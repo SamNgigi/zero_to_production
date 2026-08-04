@@ -15,6 +15,17 @@ use zero2prod::{
     telemetry,
 };
 
+pub fn assert_on_redirect(response: &reqwest::Response, location: &str) {
+    assert_eq!(response.status().as_u16(), 303);
+    assert_eq!(
+        response
+            .headers()
+            .get("Location")
+            .expect("Failed to get location header."),
+        location
+    );
+}
+
 // INFO: Ensuring that the `tracing` stack is only initialized once using `std::sync::LazyLock`.
 // Replaces `once_cell::sync::Lazy`.
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -50,6 +61,13 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn get_change_password_form(&self) -> reqwest::Response {
+        self.client
+            .get(format!("{}/admin/change_password", self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET /admin/change_password request in test.")
+    }
     pub async fn get_admin_dashboard_html(&self) -> String {
         self.get_admin_dashboard()
             .await
@@ -218,6 +236,7 @@ impl TestUser {
             user_id: test_user,
             username: test_user.to_string(),
             password: test_user.to_string(),
+            // password: "everythinghastostartfromsomewhere"
         }
     }
 

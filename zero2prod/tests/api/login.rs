@@ -1,4 +1,4 @@
-use crate::helpers::spawn_app;
+use crate::helpers::{assert_on_redirect, spawn_app};
 
 #[tokio::test]
 async fn you_must_be_logged_in_to_access_admin_dashboard() {
@@ -31,7 +31,7 @@ async fn redirects_to_admin_dashboard_on_successful_login() {
 }
 
 #[tokio::test]
-async fn an_error_flash_message_cookie_is_set_on_failure() {
+async fn an_error_flash_message_cookie_is_set_on_login_failure() {
     // NOTE: Arrange
     let app = spawn_app().await;
     let login_body = serde_json::json!({
@@ -55,16 +55,5 @@ async fn an_error_flash_message_cookie_is_set_on_failure() {
     assert!(
         !login_html.contains(r#"<p><i>Authentication Failed.</i></p>"#),
         "Error Html Should NOT Be Rendered."
-    );
-}
-
-fn assert_on_redirect(response: &reqwest::Response, location: &str) {
-    assert_eq!(response.status().as_u16(), 303);
-    assert_eq!(
-        response
-            .headers()
-            .get("Location")
-            .expect("Failed to get location header."),
-        location
     );
 }

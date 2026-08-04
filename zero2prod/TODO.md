@@ -1,4 +1,3 @@
-
 # TODOS
 ### Securing Our API
 
@@ -106,30 +105,78 @@ Mostly just coding sections
       - [x] Make our flash message cookie ephemiral by setting `Max-Age` to 0.
       - [x] Make our flash message cookie secure by using `actix-web-flash-messages` crate as our middleware for handling cookies.
 - [ ] Sessions
-  - [ ] Why Redis as a session Store? In Memory RAM storage that provides rapid access to a session + native support for expiration
+  - [x] Why Redis as a session Store? In Memory RAM storage that provides rapid access to a session + native support for expiration
   - [ ] `actix-session`
-    - [ ] Add `actix-session` with `redis-session-rustls` feature.
-    - [ ] Add `scripts/init_redis.sh` for adding reddis to our application via docker.
-    - [ ] TODO IN PRODUCTION: ADD REDIS
-    - [ ] Wire up `actix-session`'s `SessionMiddlewar` in `startup.rs`'s `run` routine
-    - [ ] Wire up redis from `base_configuration.yaml` to `config.rs`.
+    - [x] Add `actix-session` with `redis-session-rustls` feature.
+    - [x] Add `scripts/init_redis.sh` for adding reddis to our application via docker.
+    - [x] TODO IN PRODUCTION: ADD REDIS
+    - [x] Wire up `actix-session`'s `SessionMiddlewar` in `startup.rs`'s `run` routine
+    - [x] Wire up redis from `base_configuration.yaml` to `config.rs`.
   - [ ] Admin Dashboard
-    - [ ] Add `redirect_to_dashboard_after_login_success` test
-      - [ ] Add `get_admin_dashboard_html` test helper
-      - [ ] Update `login` hander to do appropriate redirection on successful login 
-        - [ ] insert `user_id` in session state to pass to `admin_dashboard` handler
-        - [ ] Add `redirect_to_login` helper in `src/routes/login/post.rs` that handles redirects to login when login attempts fail
-      - [ ] Add `admin_dashboard` handler
-        - [ ] Wire up handler to routes in `startup.rs`
-        - [ ] Add an initial `admin_dashboard.html` with welcom message
-        - [ ] Add an opaque `e500` helper functions that handles
-          - [ ] Unexpected errors from getting `user_id` from session.
-          - [ ] Unexpected errors from  `get_username` function that returns `username` from db given `user_id`
-        - [ ] Update response to pass `username` to `admin_dashboard.html`.
-        - [ ] Update `login` handler with `session.renew` before inserting `user_id` into the session.
-        - [ ] Add `you_must_be_logged_in_to_access_admin_dashboard` test
-          - [ ] Split out `get_admin_dashboard` from `get_admin_dashboard_html` that we'll call in the test above
-        - [ ] Add redirect to `login` if `user_id` was not part of the session.
-        - [ ] Implement a custom `TypedSession` to wrap `actix_session`'s `Session`
-          - [ ] Implement `TypeSession` as a custom `actix_web` extractor
-          - [ ] Update `login` and `admin_dashboard` handlers to use `TypedSession`
+    - [x] Add `redirect_to_dashboard_after_login_success` test
+      - [x] Add `get_admin_dashboard_html` test helper
+      - [x] Update `login` hander to do appropriate redirection on successful login 
+        - [x] insert `user_id` in session state to pass to `admin_dashboard` handler
+        - [x] Add `redirect_to_login` helper in `src/routes/login/post.rs` that handles redirects to login when login attempts fail
+      - [x] Add `admin_dashboard` handler
+        - [x] Wire up handler to routes in `startup.rs`
+        - [x] Add an initial `admin_dashboard.html` with welcom message
+        - [x] Add an opaque `e500` helper functions that handles
+          - [x] Unexpected errors from getting `user_id` from session.
+          - [x] Unexpected errors from  `get_username` function that returns `username` from db given `user_id`
+        - [x] Update response to pass `username` to `admin_dashboard.html`.
+        - [x] Update `login` handler with `session.renew` before inserting `user_id` into the session.
+        - [x] Add `you_must_be_logged_in_to_access_admin_dashboard` test
+          - [x] Split out `get_admin_dashboard` from `get_admin_dashboard_html` that we'll call in the test above
+        - [x] Add redirect to `login` if `user_id` was not part of the session.
+        - [x] Implement a custom `TypedSession` to wrap `actix_session`'s `Session`
+          - [x] Implement `TypeSession` as a custom `actix_web` extractor
+          - [x] Update `login` and `admin_dashboard` handlers to use `TypedSession`
+- [ ] Seed Users
+  - [ ] Database Migration
+   - [x] Create new migration to create default user
+    - [x] Generate `Uuidv7` for `user_id`, `admin` for `username` and PHC String format password hash for `password_hash`.
+    - [x] Populate SQL query with the above values for inserting users.
+    - [x] Run migration
+  - [ ] Password Reset
+    - [ ] Add `tests/api/change_password.rs`
+    - [ ] Add `you_must_be_logged_in_to_access_change_password_form` 
+      - [ ] Add `get_change_password` test helper.
+      - [ ] Add password module - `src/routes/admin/password/{mod,get}.rs + change_password.html`
+      - [ ] Implement skeleton for `change_password_form` handler. 
+      - [ ] Move `e500` to a `src/utils.rs` module as a error handler to session insertion and extraction failure mode.
+      - [ ] Add `see_other` helper to `src/utils.rs` to handle redirections.
+    - [ ] Add `you_must_be_logged_in_to_post_to_change_password()`
+      - [ ] Add `post_change_password` test helper.
+      - [ ] Add `src/routes/admin/password/post.rs` and implement initial skeleton
+    - [ ] Update `dashboard.html` to include link to `"/admin/password"`
+    - [ ] Add `error_flash_message_is_set_on_new_password_fields_mismatch` test
+      - [ ] Add `get_change_password_html` test helper that returns `change_password_form.html` as text.
+      - [ ] Update `change_password` handler to insert `FlashMessage` error message if password values don't match.
+      - [ ] Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.
+    - [ ] Add `error_flash_message_is_set_on_invalid_current_password` test.
+      - [ ] Update `change_password` handler to check validity of current password
+        - [ ] Use `get_username` from `src/admin/admin_dashbooard.rs` to retrieve username from db.
+        - [ ] Build `Credentials` and use `validate_credentials` to validate `current_password`
+    - [ ] Add `error_flash_message_is_set_when_new_password_is_too_short`
+      - [ ] Update `change_password` handler accordingly.
+    - [ ] Add `logout_clears_session_state` test
+      - [ ] Add `post_logout` test helper
+      - [ ] Asserts that user was logged in by checking `admin_dashboard.html` content
+      - [ ] Asserts that user was logged out by checking redirect to `login_form.html` and it contains a flash cookie message
+      - [ ] Asserts that you cannot access `admin_dashboard.html` now that you've beeen logged out.
+      - [ ] Update `admin_dashboard.html` to include logout form that posts to `/admin/logout`
+      - [ ] Add `logout` handler.
+        - [ ] Add a `logout` public method to `TypedSession`
+        - [ ] Add flash message to `logout` handler on successful logout.
+        - [ ] Update `login_form` handler to display all flash messages and not just errors
+    - [ ] Add `change_password_works` test.
+      - [ ] Asserts succesful login and redirect to `/admin/dashboard`
+      - [ ] Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message
+      - [ ] Asserts on succesful logout with information logout flash message
+      - [ ] Asserts on succesful login again with redirect to `/admin/dashboard`
+      - [ ] Updates `change_password` handler to update user's new password by
+        - [ ] Adds `change_password` to `authentication.rs` that handles db update of user password 
+        - [ ] Adds `compute_password_hash` to `authenticate.rs` to compute the new password's hash.
+
+
