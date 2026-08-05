@@ -139,17 +139,17 @@ Mostly just coding sections
     - [x] Populate SQL query with the above values for inserting users.
     - [x] Run migration
   - [ ] Password Reset
-    - [ ] Add `tests/api/change_password.rs`
-    - [ ] Add `you_must_be_logged_in_to_access_change_password_form` 
-      - [ ] Add `get_change_password` test helper.
-      - [ ] Add password module - `src/routes/admin/password/{mod,get}.rs + change_password.html`
-      - [ ] Implement skeleton for `change_password_form` handler. 
-      - [ ] Move `e500` to a `src/utils.rs` module as a error handler to session insertion and extraction failure mode.
-      - [ ] Add `see_other` helper to `src/utils.rs` to handle redirections.
-    - [ ] Add `you_must_be_logged_in_to_post_to_change_password()`
-      - [ ] Add `post_change_password` test helper.
-      - [ ] Add `src/routes/admin/password/post.rs` and implement initial skeleton
-    - [ ] Update `dashboard.html` to include link to `"/admin/password"`
+    - [x] Add `tests/api/change_password.rs`
+    - [x] Add `you_must_be_logged_in_to_access_change_password_form` 
+      - [x] Add `get_change_password` test helper.
+      - [x] Add password module - `src/routes/admin/password/{mod,get}.rs + change_password.html`
+      - [x] Implement skeleton for `change_password_form` handler. 
+      - [x] Move `e500` to a `src/utils.rs` module as a error handler to session insertion and extraction failure mode.
+      - [x] Add `see_other` helper to `src/utils.rs` to handle redirections.
+    - [x] Add `you_must_be_logged_in_to_post_to_change_password()`
+      - [x] Add `post_change_password` test helper.
+      - [x] Add `src/routes/admin/password/post.rs` and implement initial skeleton
+    - [x] Update `dashboard.html` to include link to `"/admin/password"`
     - [ ] Add `error_flash_message_is_set_on_new_password_fields_mismatch` test
       - [ ] Add `get_change_password_html` test helper that returns `change_password_form.html` as text.
       - [ ] Update `change_password` handler to insert `FlashMessage` error message if password values don't match.
