@@ -3,6 +3,35 @@ use uuid::Uuid;
 use crate::helpers::{assert_on_redirect, spawn_app};
 
 #[tokio::test]
+async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act & Assert 1 - Successful Login.
+    let response = app
+        .post_login(&serde_json::json!({
+            "username": app.test_user.username,
+            "password": app.test_user.password
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin_dashboard");
+
+    // NOTE: Act & Assert 2 - Redirect to change form with flash message
+    let response = app
+        .post_change_password(&serde_json::json!({
+            "current_password": app.test_user.password,
+            "new_password": Uuid::new_v4().to_string(),
+            "confirm_password": Uuid::new_v4().to_string(),
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin/change_password");
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains(
+        "<p><i>New Password and Confirm Password fields do not match. Fields must match.</i></p>"
+    ));
+}
+
+#[tokio::test]
 async fn you_must_be_logged_in_to_post_to_change_password() {
     // NOTE: Arrange
     let app = spawn_app().await;
