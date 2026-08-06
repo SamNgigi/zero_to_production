@@ -1,24 +1,12 @@
-use actix_web::{
-    HttpResponse,
-    error::InternalError,
-    http::{
-        StatusCode,
-        header::{ContentType, LOCATION},
-    },
-    web,
-};
+use actix_web::{HttpResponse, http::header::ContentType, web};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::session_state::TypedSession;
-
-fn e500<E>(e: E) -> InternalError<E>
-where
-    E: std::fmt::Debug + std::fmt::Display + 'static,
-{
-    InternalError::new(e, StatusCode::INTERNAL_SERVER_ERROR)
-}
+use crate::{
+    session_state::TypedSession,
+    utils::{e500, see_other},
+};
 
 pub async fn admin_dashboard(
     db_pool: web::Data<PgPool>,
@@ -27,9 +15,7 @@ pub async fn admin_dashboard(
     let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
         get_username(&db_pool, user_id).await.map_err(e500)?
     } else {
-        return Ok(HttpResponse::SeeOther()
-            .insert_header((LOCATION, "/login"))
-            .finish());
+        return Ok(see_other("/login"));
     };
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())

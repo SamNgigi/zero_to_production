@@ -150,26 +150,26 @@ Mostly just coding sections
       - [x] Add `post_change_password` test helper.
       - [x] Add `src/routes/admin/password/post.rs` and implement initial skeleton
     - [x] Update `dashboard.html` to include link to `"/admin/password"`
-    - [ ] Add `error_flash_message_is_set_on_new_password_fields_mismatch` test
-      - [ ] Add `get_change_password_html` test helper that returns `change_password_form.html` as text.
-      - [ ] Update `change_password` handler to insert `FlashMessage` error message if password values don't match.
-      - [ ] Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.
-    - [ ] Add `error_flash_message_is_set_on_invalid_current_password` test.
-      - [ ] Update `change_password` handler to check validity of current password
-        - [ ] Use `get_username` from `src/admin/admin_dashbooard.rs` to retrieve username from db.
-        - [ ] Build `Credentials` and use `validate_credentials` to validate `current_password`
-    - [ ] Add `error_flash_message_is_set_when_new_password_is_too_short`
-      - [ ] Update `change_password` handler accordingly.
-    - [ ] Add `logout_clears_session_state` test
-      - [ ] Add `post_logout` test helper
-      - [ ] Asserts that user was logged in by checking `admin_dashboard.html` content
-      - [ ] Asserts that user was logged out by checking redirect to `login_form.html` and it contains a flash cookie message
-      - [ ] Asserts that you cannot access `admin_dashboard.html` now that you've beeen logged out.
-      - [ ] Update `admin_dashboard.html` to include logout form that posts to `/admin/logout`
-      - [ ] Add `logout` handler.
-        - [ ] Add a `logout` public method to `TypedSession`
-        - [ ] Add flash message to `logout` handler on successful logout.
-        - [ ] Update `login_form` handler to display all flash messages and not just errors
+    - [x] Add `error_flash_message_is_set_on_new_password_fields_mismatch` test
+      - [x] Add `get_change_password_html` test helper that returns `change_password_form.html` as text.
+      - [x] Update `change_password` handler to insert `FlashMessage` error message if password values don't match.
+      - [x] Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.
+    - [x] Add `error_flash_message_is_set_on_invalid_current_password` test.
+      - [x] Update `change_password` handler to check validity of current password
+        - [x] Use `get_username` from `src/admin/admin_dashbooard.rs` to retrieve username from db.
+        - [x] Build `Credentials` and use `validate_credentials` to validate `current_password`
+    - [x] Add `error_flash_message_is_set_when_new_password_is_too_short`
+      - [x] Update `change_password` handler accordingly.
+    - [x] Add `logout_clears_session_state` test
+      - [x] Add `post_logout` test helper
+      - [x] Asserts that user was logged in by checking `admin_dashboard.html` content
+      - [x] Asserts that user was logged out by checking redirect to `login_form.html` and it contains a flash cookie message
+      - [x] Asserts that you cannot access `admin_dashboard.html` now that you've beeen logged out.
+      - [x] Update `admin_dashboard.html` to include logout form that posts to `/admin/logout`
+      - [x] Add `logout` handler.
+        - [x] Add a `logout` public method to `TypedSession`
+        - [x] Add flash message to `logout` handler on successful logout.
+        - [x] Update `login_form` handler to display all flash messages and not just errors
     - [ ] Add `change_password_works` test.
       - [ ] Asserts succesful login and redirect to `/admin/dashboard`
       - [ ] Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message

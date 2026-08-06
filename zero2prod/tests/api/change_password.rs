@@ -6,7 +6,7 @@ async fn you_must_be_logged_in_to_access_change_password_form() {
     let app = spawn_app().await;
 
     // NOTE: Act
-    let response = app.get_change_password_form().await;
+    let response = app.get_change_password().await;
 
     // NOTE: Assert
     assert_on_redirect(&response, "/login");

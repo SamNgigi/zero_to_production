@@ -61,9 +61,9 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
-    pub async fn get_change_password_form(&self) -> reqwest::Response {
+    pub async fn get_change_password(&self) -> reqwest::Response {
         self.client
-            .get(format!("{}/admin/change_password", self.address))
+            .get(format!("{}/admin/change_password", &self.address))
             .send()
             .await
             .expect("Failed to execute GET /admin/change_password request in test.")
