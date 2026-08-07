@@ -1,8 +1,11 @@
 use actix_web::{HttpResponse, web};
 use actix_web_flash_messages::FlashMessage;
 use secrecy::{ExposeSecret, SecretString};
+use sqlx::PgPool;
 
 use crate::{
+    authentication::{AuthError, Credentials, validate_credentials},
+    routes::admin::dashboard::get_username,
     session_state::TypedSession,
     utils::{e500, see_other},
 };
@@ -15,12 +18,14 @@ pub struct FormData {
 }
 
 pub async fn change_password(
+    db_pool: web::Data<PgPool>,
     form: web::Form<FormData>,
     session: TypedSession,
 ) -> Result<HttpResponse, actix_web::Error> {
-    if session.get_user_id().map_err(e500)?.is_none() {
+    let Some(user_id) = session.get_user_id().map_err(e500)? else {
         return Ok(see_other("/login"));
-    }
+    };
+
     if form.0.new_password.expose_secret() != form.0.confirm_password.expose_secret() {
         FlashMessage::error(
             "New Password and Confirm Password fields do not match. Fields must match.",
@@ -28,6 +33,23 @@ pub async fn change_password(
         .send();
         return Ok(see_other("/admin/change_password"));
     };
-    form.0.current_password.expose_secret();
+
+    let username = get_username(&db_pool, user_id).await.map_err(e500)?;
+    let credentials = Credentials {
+        username,
+        password: form.0.current_password,
+    };
+    if let Err(e) = validate_credentials(&db_pool, credentials).await {
+        match e {
+            AuthError::InvalidCredentials(_) => {
+                FlashMessage::error("The current password is incorrect.").send();
+                return Ok(see_other("/admin/change_password"));
+            }
+            AuthError::Unexpected(_) => {
+                return Err(e500(e).into());
+            }
+        }
+    };
+
     todo!()
 }

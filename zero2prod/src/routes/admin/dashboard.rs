@@ -25,7 +25,7 @@ pub async fn admin_dashboard(
         )))
 }
 
-async fn get_username(db_pool: &PgPool, user_id: Uuid) -> Result<String, anyhow::Error> {
+pub async fn get_username(db_pool: &PgPool, user_id: Uuid) -> Result<String, anyhow::Error> {
     let row = sqlx::query!(
         r#"
             SELECT username
