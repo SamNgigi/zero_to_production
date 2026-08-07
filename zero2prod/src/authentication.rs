@@ -1,10 +1,52 @@
 use anyhow::Context;
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use argon2::{
+    Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::telemetry::spawn_blocking_with_tracing;
+
+#[tracing::instrument(name = "Update Password", skip(db_pool, new_password, user_id))]
+pub async fn update_password(
+    db_pool: &PgPool,
+    new_password: SecretString,
+    user_id: Uuid,
+) -> Result<(), anyhow::Error> {
+    let password_hash = spawn_blocking_with_tracing(move || compute_password_hash(new_password))
+        .await?
+        .context("Failed to compute password_hash for new password.")?;
+
+    sqlx::query!(
+        r#"
+            UPDATE users
+                SET password_hash = $1
+            WHERE user_id = $2;
+        "#,
+        password_hash.expose_secret(),
+        user_id,
+    )
+    .execute(db_pool)
+    .await
+    .context("Failed to execute SQL to update user's password.")?;
+
+    Ok(())
+}
+
+fn compute_password_hash(password: SecretString) -> Result<SecretString, anyhow::Error> {
+    let salt = SaltString::generate(&mut OsRng);
+    let password_hash = Argon2::new(
+        Algorithm::Argon2id,
+        Version::V0x13,
+        Params::new(19000, 2, 1, None).expect("Failed to create new Argon2id params."),
+    )
+    .hash_password(password.expose_secret().as_bytes(), &salt)?
+    .to_string();
+
+    Ok(SecretString::from(password_hash))
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {

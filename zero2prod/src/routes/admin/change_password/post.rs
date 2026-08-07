@@ -4,7 +4,7 @@ use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 
 use crate::{
-    authentication::{AuthError, Credentials, validate_credentials},
+    authentication::{self, AuthError, Credentials, validate_credentials},
     routes::admin::dashboard::get_username,
     session_state::TypedSession,
     utils::{e500, see_other},
@@ -55,5 +55,10 @@ pub async fn change_password(
         FlashMessage::error("New password is too short. Password should be more than 12 but less than 129 characters long.").send();
         return Ok(see_other("/admin/change_password"));
     }
-    todo!()
+
+    authentication::update_password(&db_pool, form.0.new_password, user_id)
+        .await
+        .map_err(e500)?;
+    FlashMessage::info("You've successfully changed your password.").send();
+    Ok(see_other("/admin/change_password"))
 }
