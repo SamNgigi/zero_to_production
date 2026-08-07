@@ -61,6 +61,14 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_logout(&self) -> reqwest::Response {
+        self.client
+            .post(format!("{}/admin/logout", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/logout request in test.")
+    }
+
     pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
