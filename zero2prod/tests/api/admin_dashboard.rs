@@ -31,7 +31,7 @@ async fn logout_clears_session_state() {
     let response = app.post_logout().await;
     assert_on_redirect(&response, "/login");
     let login_html = app.get_login_html().await;
-    assert!(login_html.contains(r#"<p><i>You've been successfully logged out.</i></p>"#));
+    assert!(login_html.contains(r#"<p><i>You've successfully logged out.</i></p>"#));
 
     // NOTE: Act & Assert 3 - Cannot access dashboard.
     let response = app.get_admin_dashboard().await;

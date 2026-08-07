@@ -1,18 +1,6 @@
 use crate::helpers::{assert_on_redirect, spawn_app};
 
 #[tokio::test]
-async fn you_must_be_logged_in_to_access_admin_dashboard() {
-    // NOTE: Arrange
-    let app = spawn_app().await;
-
-    // NOTE: Act
-    let response = app.get_admin_dashboard().await;
-
-    // NOTE: Arrange
-    assert_on_redirect(&response, "/login");
-}
-
-#[tokio::test]
 async fn redirects_to_admin_dashboard_on_successful_login() {
     // NOTE: Arrange
     let app = spawn_app().await;
