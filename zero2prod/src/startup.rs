@@ -11,7 +11,7 @@ use crate::{
     email_client::EmailClient,
     routes::{
         admin_dashboard, change_password, change_password_form, confirm, greet, health_check, home,
-        login, login_form, publish_newsletter, subscribe,
+        login, login_form, logout, publish_newsletter, subscribe,
     },
 };
 
@@ -106,6 +106,7 @@ async fn run(
                 web::get().to(change_password_form),
             )
             .route("/admin/change_password", web::post().to(change_password))
+            .route("/admin/logout", web::post().to(logout))
             .route("/{name}", web::get().to(greet))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
