@@ -50,6 +50,10 @@ pub async fn change_password(
             }
         }
     };
-
+    let new_password_len = form.0.new_password.expose_secret().len();
+    if !(12..129).contains(&new_password_len) {
+        FlashMessage::error("New password is too short. Password should be more than 12 but less than 129 characters long.").send();
+        return Ok(see_other("/admin/change_password"));
+    }
     todo!()
 }
