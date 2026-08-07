@@ -3,6 +3,34 @@ use uuid::Uuid;
 use crate::helpers::{assert_on_redirect, spawn_app};
 
 #[tokio::test]
+async fn error_flash_message_is_set_on_incorrect_current_password() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act & Assert 1 - Successful Login.
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin_dashboard");
+
+    // NOTE: Act & Assert 2 - Redirect to admin/change_password
+    let new_password = Uuid::new_v4().to_string();
+    let change_password_request = serde_json::json!({
+        "current_password": Uuid::new_v4().to_string(),
+        "new_password": &new_password,
+        "confirm_password": &new_password
+    });
+    let response = app.post_change_password(&change_password_request).await;
+    assert_on_redirect(&response, "/admin/change_password");
+
+    // NOTE: Act & Assert 3 - Flash Error Message Rendered.
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains("<p><i>The current password is incorrect.</i></p>"));
+}
+
+#[tokio::test]
 async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
     // NOTE: Arrange
     let app = spawn_app().await;

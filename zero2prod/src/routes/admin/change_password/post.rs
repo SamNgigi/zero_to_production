@@ -28,6 +28,6 @@ pub async fn change_password(
         .send();
         return Ok(see_other("/admin/change_password"));
     };
-    let _current_password = form.0.current_password.expose_secret();
+    form.0.current_password.expose_secret();
     todo!()
 }
