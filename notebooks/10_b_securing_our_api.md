@@ -69,7 +69,6 @@ _**Question?**_
 - Curious where to draw the line when it comes cookies, sessions, authorization/authentication between front end and purely API backends.
   > [Claude](https://claude.ai/chat/d40b81b5-4367-4ce2-aa32-0704572e87a6) chat where we explore this for a bit.
 
-
 ##### 10.06.0.1. Deep Dive: Summarize, ELI5, Connect
 
 _**Summary**_  
@@ -90,6 +89,7 @@ Here we add a `src/routes/login` module with `mod.rs`, `get.rs`, `post.rs` and `
 We then stub the up appropriately then wire them up to `src/routes/mod.rs` and `startup.rs`
 
 Let start by adding initial contents of `login.html`, `get.rs`, `post.rs`and `mod.rs`.
+
 ```HTML
 <!--src/routes/login/login.html-->
 
@@ -573,9 +573,11 @@ Alright, so we pass back the error message to the `GET /login`  endpoint as quer
 3. Extract the query params in `src/routes/login/get.rs` handler via `web::Query` extractor.
 
 We need the `urlencoding` crate to appropriately encode our error messages into a URL format.
+
 ```bash
 cargo add urlencoding
 ```
+
 The we update our implementation as follows
 ```Rust
 //! src/route/login/post.rs
@@ -635,6 +637,7 @@ This is an example of [Cross Site Scripting (XSS) Attack](https://owasp.org/www-
 The OWASP provides a [cheatsheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html) of recommendations on how to prevent XSS attacks. Following their
 guidelines we need to escape "code" characters that our application might inadvertently execute. 
 For this we have the `html-escape` crate. Lets use it 
+
 ```bash
 cargo add html-escape
 ```
@@ -709,6 +712,7 @@ To do this we will need to
 We add the `hmac` and `sha2` crates.
 > Attempted to generate a `hmac` using `sha3::Sha3_256` however this returns a `does not implement CoreProxy trait`.
 > Can look into it later but the immediate remedy is to default to `sha2::Sha256`
+
 ```bash
 cargo add hmac sha2
 cargo remove sha3
@@ -944,8 +948,6 @@ A <strong>cookie</strong> is a small piece of data that a server sends to the us
     
 </div>
 
-
-
 The flow remains the same as we did with query params.
 1. A use enteres invalid credentials and submits the form
 2. `POST /login` handler `login` sets a cookie with the error message and then redirect to `GET /login`
@@ -998,6 +1000,7 @@ impl TestApp {
 }
 ```
 **Note:** because we use `.form` when buiding the `Client` we need to add it as part of the `reqwest` features
+
 ```bash
 cargo add reqwests -F form
 ```
@@ -1143,9 +1146,11 @@ async fn an_error_flash_message_cookie_is_set_on_failure() {
 Our test fails because we are not yet setting the cookie in our implementation.  
 Before we do there is a more ergonomic way for us to check for the existence of our flash message cookie through a dedicated API that `reqwests` gives us.  
 To use it we need to enable the feature
+
 ```bash
 cargo add reqwests -F cookies
 ```
+
 And then our implementation can be updated as follows
 
 ```Rust
@@ -1437,8 +1442,8 @@ pub async fn login_form(request: HttpRequest) -> HttpResponse {
         .cookie(Cookie::build("_flash", "").max_age(Duration::ZERO).finish())
         .body(format!(include_str!("./login.html"), error_html))
 }
-
 ```
+
 2. Calling `add_removal_cookie` on the `HttpResponse`
 
 ```Rust
@@ -1463,7 +1468,6 @@ pub async fn login_form(request: HttpRequest) -> HttpResponse {
     response
 }
 ```
-
 
 #### 10.06.4.14. Cookie Security
 
@@ -1582,7 +1586,6 @@ Our tests should remain passing. But it seems there's one failing
 
 Right. The one where we were checking equality of the error message contained in the cookie
 
-
 ```Rust
 //! tests/api/login.rs
 // [...]
@@ -1637,7 +1640,6 @@ Our test should now pass.
 
 ##### 10.07.0.0. Skimming: What did you notice and why? Any Questions
 
-
 _**What?**_  
 - Sessions allow us not to have to re-authenticate a user everytime they want to interact with functionality they are already entitled to.
 - **user** session vs **browser** session and how to tell apart which session we are talking about when talking about a _session cookie/session token_ lifetime. 
@@ -1668,10 +1670,8 @@ _**Why?**_
 - Yet another cool resource on web application security. I'm guessing _Session fixation_ a session token is left disambiguated between anonymous and priviledged sessions.
 - We get to implement async traits that require to explicity return a future. Looking forward to this as well.
 
-  
 _**Question?**_  
 _Diff_ between a user session and a browser session.
- 
 
 | Feature | **User** | **Browser Session** |
 | :--- | :--- | :--- |
@@ -1682,7 +1682,6 @@ _Diff_ between a user session and a browser session.
 | **Storage Location** | Client browser cookie or server database. | RAM, Redis, or short-lived session cookie. |
 | **Cookie Attributes** | `Expires` set to months or years in future. | `Expires` set to end when browser closes. |
 | **State Management** | Stores persistent profile and account preferences. | Stores temporary data like shopping cart items. |
-
 
 ##### 10.07.0.0.1. Deep Dive: Summarize, ELI5, Connect
 
@@ -1707,7 +1706,6 @@ Because _session tokens_ are as sensitive as other credentials like username and
 avoiding exposing then to attackers.
 
 OWASP provides extensive guidance on this, and we will be implementing most of their recommendations.
-
 
 > **Browser vs User Session**
 >
@@ -1777,6 +1775,7 @@ _**Summary**_
 - Add the `redis_url` as a parameter to `run` in `startup.rs`. It is required to build `actix-session`'s `SessionMiddleware`
 
 **1. Add `actix-session` crate with `redis-session-rustls` feature enabled**.  
+
 ```bash
 cargo add actix-session --feature redis-session-rustls
 ```
@@ -1814,7 +1813,6 @@ Lets change up the steps a bit and
 redis_uri: "redis:://127.0.0.1:6379"
 ```
 
-
 **b. Add the field to `config.rs`'s `Settings`.**  
 ```Rust
 //! src/config.rs
@@ -1826,7 +1824,6 @@ pub struct Settings {
     pub redis_uri: SecretString,
 }
 ```
-
 
 **- Everything else is in `startup.rs` so we do everything in one go.**
 ```Rust
@@ -1887,6 +1884,7 @@ async fn main() -> anyhow::Result<()> {
 #### 10.07.4.0. Redis In Our Development Setup
 
 On dev we'll use docker for redis with a pretty similar approach to what we did for postgres with a `init_redis.sh`.  
+
 ```bash
 #! scripts/init_redis.sh
 #!/usr/bin/env bash
@@ -1915,6 +1913,7 @@ fi
 ```
 
 We make the script executable and then run the script  
+
 ```bash
 chmod +x ./scripts/init_redis.sh
 ./scripts/init_redis.sh
@@ -2079,10 +2078,12 @@ Alot to do. Lets get to it.
 
 **4. Add `admin_dashboard.html` and `admin_dashboard` handler.**   
 We need to add a new `admin` module.
+
 ```bash
 $ mkdir src/routes/admin && touch src/routes/admin/admin_dashboard.{rs,html}
 $ touch src/routes/admin/mod.rs
 ```
+
 Then wire it up. Then lets add the `admin_dashboard.html`.
 
 ```HTML
@@ -2428,50 +2429,1007 @@ _**What?**_
 - Creating a custom actix middle ware that wraps all restricted endpoint requests
 - Challenge to implement _new password is too short_ ensuring new password has to be between 12-129 characters.
 
-
 _**Why?**_  
 - Seems like the invlte collaborators functionality would involve querying specific users from the db and sending them an invite link that is login protected first.
 - Hacky but needed. Wonder how Django does it.
 - Still unclear about how `e500` will work in axum.
 
-
 _**Questions?**_  
 None.
 
-
 ##### 10.08.0.0.1. Deep Dive: Summarize, ELI5, Connect
 
-
+Here we primarily seed our application with an admin user who can utilize the admin dashboard.
 
 ### 10.08.1. Database Migration
 
+In this section we add the application admin user directly to the database with an initial default password in the following steps
+1. Create new migration to create default user
+2. Generate `Uuidv7` for `user_id`, `admin` for `username` and PHC String format password hash for `password_hash`.
+3. Populate SQL query with the above values for inserting users.
+4. Run migration
 
+**1. Create new migration to create default user.**  
+```bash
+sqlx migrate add seed_user
+```
+
+**2. Generate `Uuidv7` for `user_id`, `"admin"` for `username` and PHC String format password hash for `password_hash`.**
+- For the Uuidv7 `user_id` we use [this](https://www.uuidgenerator.net/version7) web site. We get `019fcb48-4b42-768f-a117-ea93c2964c81`.
+- `"admin"` for `username`
+- For the PHC String format of our `password_hash` we tweak our `tests/api/helper.rs`'s `TestUser`'s  `generate` and `store` methods.  
+  Want we want is to set an initial password `"everythinghastostartfromsomewhere"` in `generate` and then we'll hash it using `argon2`  
+  the debug print the `password_hash`.
+  ```Rust
+  //! tests/api/helpers.rs
+  // [...]
+
+  // [...]
+
+  impl TestUser {
+      fn generate() -> Self {
+          // [...]
+          Self {
+              // [...]
+              password: "everythinghastostartfromsomewhere".to_string()
+          }
+      }
+
+      async fn store(&self, db_pool: &PgPool) {
+          // [...]
+          let password_hash = Argon2::default()
+              .hash_password(self.password.as_bytes(), &salt)
+              .expect("Failed to get password hash")
+              .to_string();
+
+          dbg!(&password_hash);
+
+          // [...]
+      }
+  }
+  ```
+  This would print the following PHC String formatted password hash;  
+  `$argon2id$v=19$m=19456,t=2,p=1$yFIw2eHN2DJARIRpszlqHw$2M1pVj8UZBVT7fW1EN95oc0pPHrq4vfrzSeSSvIKBUc`
+
+  
+
+**3. Populate SQL query with the above values for inserting users.**  
+```sql
+-- migrations\20260804053534_seed_user.sql
+-- Add migration script here.
+INSERT INTO users (user_id, username, password_hash)
+VALUES (
+    '019fcb48-4b42-768f-a117-ea93c2964c81',
+    'admin',
+    '$argon2id$v=19$m=19456,t=2,p=1$yFIw2eHN2DJARIRpszlqHw$2M1pVj8UZBVT7fW1EN95oc0pPHrq4vfrzSeSSvIKBUc'
+)
+```
+**4. Run migration.**  
+```bash
+sqlx migrate run 
+```
+
+We now have an admin user  
+![image.png](10_b_securing_our_api_files/d2e751cb-7068-4bb1-96fc-ecd8b1f0987c.png)
 
 ### 10.08.2. Password Reset. (_Slightly bulky_)
 
+Alright we just provisioned a highly priviledged user with known credentials (username & password). This is pretty dangerous territory.  
+We need to provide password reset functionality as one of the first actions an admin can perform on the dashboard. 
+
+We'll work through this section using the same TDD approach we've used through out the book. What are the thing that we want to be able to test.  
+Lets start with what can go wrong. The unhappy path.
+- Only an authenticated user can access the reset/change password form
+- Only an authenticated user can post request to change their password. Note the distinction.
+
+A password reset form usually has the following fields `current_password`, `new_password`, `confirm_password`. We want to ensure that  
+- `new_password` and `confirm_password` match.
+- `new_password` is of a valid length. At least $12$ characters long but not more than $129$ characters.
+- `current_password` must be correct, matching what we already have stored in our DB.
+
+Assuming that a user has met all the above, we want their password to be updated in the database but we also want test they can re-authenticate/login  
+with their new credentials. Therefore we need to ensure;
+- logout works
+- change password works
+
+This a rough sketch of how we'll drive the implementation through TDD. Below are the concrete steps that we need to take.
+
+1. Add `tests/api/change_password.rs`
+2. Add `you_must_be_logged_in_to_access_change_password_form`
+   1. Add `get_change_password` test helper.
+   2. Add password module - `src/routes/admin/password/{mod,get}.rs + change_password.html`
+   3. Implement skeleton for `change_password_form` handler.
+   4. Move `e500` to a `src/utils.rs` module as a error handler to session insertion and extraction failure mode.
+   5. Add `see_other` helper to `src/utils.rs` to handle redirections.
+3. Add `you_must_be_logged_in_to_post_to_change_password()`
+    1. Add `post_change_password` test helper.
+    2. Add `src/routes/admin/password/post.rs` and implement initial skeleton
+4. Update `dashboard.html` to include link to `"/admin/password"`
+5. Add `error_flash_message_is_set_on_new_password_fields_mismatch` test
+    1. Add `get_change_password_html` test helper that returns `change_password_form.html` as text.
+    2. Update `change_password` handler to insert `FlashMessage` error message if password values don't match.
+    3. Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.
+6. Add `error_flash_message_is_set_on_invalid_current_password` test.
+    1. Update `change_password` handler to check validity of current password
+    2. Use `get_username` from `src/admin/admin_dashbooard.rs` to retrieve username from db.
+    3. Build `Credentials` and use `validate_credentials` to validate `current_password`
+7. Add `error_flash_message_is_set_when_new_password_is_too_short`
+    1. Update `change_password` handler accordingly.
+9. Add `logout_clears_session_state` test
+    1. Add `post_logout` test helper
+    2. Asserts that user was logged in by checking `admin_dashboard.html` content
+    3. Asserts that user was logged out by checking redirect to `login_form.html` and it contains a flash cookie message
+    4. Asserts that you cannot access `admin_dashboard.html` now that you've beeen logged out.
+    5. Update `admin_dashboard.html` to include logout form that posts to `/admin/logout`
+    6. Add `logout` handler.
+        1. Add a `logout` public method to `TypedSession`
+        2. Add flash message to `logout` handler on successful logout.
+        3. Update `login_form` handler to display all flash messages and not just errors
+10. Add `change_password_works` test.
+    1. Asserts succesful login and redirect to `/admin/dashboard`
+    2. Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message
+    3. Asserts on succesful logout with information logout flash message
+    4. Asserts on succesful login again with redirect to `/admin/dashboard`
+    5. Updates `change_password` handler to update user's new password by
+        1. Adds `change_password` to `authentication.rs` that handles db update of user password 
+        2. Adds `compute_password_hash` to `authenticate.rs` to compute the new password's hash.
+
 #### 10.8.2.1. Form Skeleton
 
+Here the books starts with the the implementation of the `change_password_form` handler with the html.  
+For us we will drive the implementation through TDD so not implementing the handler until the test has failed and the implementing the minimum amount  
+of code required to make the test pass.
 
+Alight below are the overall tasks for this stage.
+1. Add `tests/api/change_password.rs`
+2. Add `you_must_be_logged_in_to_access_change_password_form`
+   1. Add `get_change_password` test helper.
+   2. Add password module - `src/routes/admin/password/{mod,get}.rs + change_password.html`
+   3. Implement skeleton for `change_password_form` handler.
+   4. Move `e500` to a `src/utils.rs` module as a error handler to session insertion and extraction failure mode.
+   5. Add `see_other` helper to `src/utils.rs` to handle redirections.
+
+Lets get to it.
+
+**1. Add `tests/api/change_password.rs`.** and  
+**2. Add `you_must_be_logged_in_to_access_change_password_form`**
+> **A. Add `get_change_password` test helper.**
+> 
+> After adding the `change_password.rs` module ensure to update it to `tests/api/main.rs`  
+> We will also implement the `get_change_password` helper because our test will make use of it.
+
+
+```Rust
+//! tests/api/helpers.rs
+//! [...] 
+
+// [...]
+
+impl TestApp {
+    pub async fn get_change_password(&self) -> reqwest::Response {
+        self.client
+            .get(format!("{}/admin/change_password", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET /admin/change_password request in test.")
+    }
+
+    // [...]
+}
+```
+
+```Rust
+//! tests/api/change_password.rs
+use crate::helpers::{assert_on_redirect, spawn_app};
+
+#[tokio::test]
+async fn you_must_be_logged_in_to_access_change_password_form() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    // Act
+    let response = app.get_change_password().await;
+    
+    // Assert
+    assert_on_redirect(&response, "/login");
+    
+}
+```
+
+The test should fail because we haven't yet implemented the `GET /admin/change_password` handler.  
+
+![image.png](10_b_securing_our_api_files/bfc971b9-8a56-43b5-8ae7-f93db0e7015a.png)
+
+How do we make this test pass. We just need to check if the session has a `user_id`. This tells us we have a logged in user in the  
+session engaging with the end point in question.  
+> **B. Add password module - `src/routes/admin/password/{mod,get,post}.rs + change_password.html**  
+>
+> **C. Implement skeleton for `change_password_form` handler, extracting the `user_id` if present, if not redrect to login**  
+> **D. Move `e500` to a `src/utils.rs` module as a error handler to session insertion and extraction failure mode.**  
+> **E. Add `see_other` helper to `src/utils.rs` to handle redirections.**
+
+Lets start by dealing with the helpers that will required by the `change_password_form` handler. The helpers include 
+- `e500`  for error handling.
+- `see_other` for redirecting.
+
+Lets move them to a `src/utils.rs` module
+
+```Rust
+//! src/utils.rs
+use actix_web::{
+    HttpResponse
+    error::InternalError, http::{header::LOCATION, StatusCode}
+};
+
+pub fn see_other(path: &str) -> HttpResponse {
+    HttpResponse::SeeOther()
+        .insert_header((LOCATION, path))
+        .finish()
+}
+    
+
+pub fn e500<E> (e: E) -> InternalError<E>
+where E: std::fmt::Debug + std::fmt::Display + 'static
+{
+    InternalError::new(e, StatusCode::INTERNAL_SERVER_ERROR)    
+}
+```
+After this we need to refactor 
+- `src/routes/login/post.rs` to make use of the `see_other`
+- `src/routes/admin/dashboard.rs` to make use of the `e500`
+
+From the utils module.
+
+With this in place we can now implement our `change_password_form` to pass our test.
+```Rust
+//! src/routes/admin/change_password/get.rs
+use actix_web::HttpResponse;
+use crate::{session_state::TypedSession, utils::{e500, see_other}};
+
+pub async fn change_password_form(
+    session: TypedSession,
+) -> Result<HttpResponse, actix_web::Error> {
+    if session.get_user_id().map_err(e500)?.is_none() {
+        return Ok(see_other("/login"));
+    };
+    todo!()
+}
+```
+
+This should be enough to pass our test.
+
+Ok someone, must be logged in to access `GET /admin/change_password`. What about `POST /admin/change_password`?
+
+Lets TDD this functionality.
+> **3. Add `you_must_be_logged_in_to_post_to_change_password()`**
+>   - **A. Add `post_change_password` test helper.**  
+>   - **B. Add `src/routes/admin/password/post.rs` and implement initial skeleton**
+
+
+Lets start with the test helper.
+```Rust
+//! tests/api/helpers.rs
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::HttpResponse 
+    where
+        Body: serde::Serialize
+    {
+        self.client
+            .post(format!("{}/admin/change_password", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/change_password")
+    }
+
+    // [...]
+}
+```
+Then the test
+```Rust
+// tests/api/change_password.rs
+// [...]
+use uuid::Uuid;
+
+#[tokio::test]
+async fn you_must_be_logged_in_to_post_to_change_password() {
+    // Arrange
+    let app = spawn_app().await;
+    let new_password = Uuid::new_v4();
+    let change_password_request = serde_json::json!({
+        "current_password": app.test_user.password,
+        "new_password": &new_password,
+        "confirm_password": &new_password,
+    });
+    
+    // Act
+    let response = app.post_change_password(&change_password_request).await;
+    
+    // Assert
+    assert_on_redirect(&response, "/login")
+    
+}
+```
+
+The test should fail.
+
+![image.png](10_b_securing_our_api_files/dc690cf9-15e6-4850-8910-a1d21018c9e6.png)
+
+
+Making the test pass is pretty straight forward. We apply similar logic we did to the `change_password_form` handler
+```Rust
+//! src/routes/admin/change_password.rs
+use actix_web::HttpResponse;
+
+use crate::{session_state::TypedSession, utils::{see_other, e500}};
+
+pub async fn change_password(
+    session: TypedSession,
+) -> Result<HttpResponse, actix_web::Error> {
+    if session.get_user_id().map_err(e500)?.is_none() {
+        return Ok(see_other("/login"));
+    };
+    todo!()
+}
+```
+
+Make sure to update `startup.rs`' routes with the handlers we created for everything to work.
+
+The test should now pass.
 
 #### 10.8.2.2. Unhappy Path: New Passwords Do Not Match
 
+Next, lets take a closer look at our change password functionality. We know that we'll need a form and a way to validate the contents  
+of the form.  
 
+Lets start with checking that the new password and the confirmed password matches. What are the steps involved here?  
+5. Add `error_flash_message_is_set_on_new_password_fields_mismatch` test.  
+   1. Add `get_change_password_html` test helper that returns `change_password_form.html` as text.
+   2. Update `dashboard.html` to include link to `"/admin/password"`
+   3. Update `change_password` handler to insert `FlashMessage` error message if password values don't match
+   4. Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.
+
+
+Lets start with the `get_change_password_html` test helper.
+```Rust
+//! tests/api/helpers.rs
+// [...]
+
+// [...]
+
+impl TestUser {
+    // [...]
+    pub async fn get_change_password_html(&self) -> String {
+        self.get_change_password()
+            .await
+            .text()
+            .await
+            .expect("Failed to decoude html to valid text.")
+    }
+    // [...]
+}
+```
+
+Alright then the test itself.
+
+```Rust
+//! tests/api/change_password.rs
+// [...]
+
+#[tokio::test]
+async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
+    // Arrange
+    let app = spawn_app().await;
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password
+    });
+    
+    // Act & Assert 1 - Successful Login
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin_dashboard");
+    
+    // Act & Asset 2 - Redirect due to password mismatch
+    let response = app.post_change_password(&serde_json::json!({
+       "current_password": app.test_user.password,
+        "new_password": Uuid::new_v4().to_string(),
+        "confirm_password": Uuid::new_v4().to_string()
+    }))
+    .await;
+    assert_on_redirect(&response, "/admin/change_password");
+
+    // Act & Asset 3 - Flash Error Message Rendered
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains("<p><i>New Password and Confirm Password fields do not match. Fields must match.</i></p>"))
+    
+}
+```
+
+This test should fail.
+
+![image.png](10_b_securing_our_api_files/05b7b178-7456-4dfb-9c49-1915d956163e.png)
+
+Now to get the test to pass. 
+
+**2. Update `dashboard.html` to include link to `"/admin/password"`.**
+```HTML
+<!--src/routes/admin/admin_dashboard.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html" charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+</head>
+<body>
+  <p>Welcome {username}</p>
+  <p>Available actions:</p>
+  <ol>
+    <li><a href="/admin/change_password">Change Password</a></li>
+  </ol>
+</body>
+</html>
+```
+
+**3. Update `change_password` handler to insert `FlashMessage` error message if password values don't match.**  
+```Rust
+//! src/routes/admin/change_password/post.rs
+// [...]
+use actix_web::web;
+use actix_web_flash_messages::FlashMessage;
+use secrecy::SecretString;
+    
+
+#[derive(serde::Deserialize)]
+pub struct FormData{
+    current_password: SecretString,
+    new_password: SecretString,
+    confirm_password: SecretString,
+}
+
+pub async fn change_password(
+    form: web::Form<FormData>,
+    // [...]
+) -> Result<HttpResponse, actix_web::Error> {
+    // [...]
+
+    if form.0.new_password.expose_secret() != form.0.confirm_password.expose_secret() {
+        FlashMessage::error("New Password and Confirm Password fields do not match. Fields must match.").send();
+        return Ok(see_other("/admin/change_password"));
+    }
+}
+```
+
+**4. Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.**  
+Lets start by adding the `change_password_form.html`
+```HTML
+<!--src/routes/admin/change_password/change_password.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content-type="text/html" charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:.">
+  <title>Change Password</title>
+</head>
+<body>
+  <h4>Change Password Form</h4>
+  {msg_html}
+  <form action="/admin/change_form" method="post">
+    <label for="current_password">Current Password:</label>
+    <input id="current_password" type="password" placeholder="Enter Current Password" name="current_password" >
+
+    <label for="new_password">New Password:</label>
+    <input type="password" placeholder="Enter New Password" name="new_password" id="new_password">
+
+    <label for="confirm_password">Confirm New Password:</label>
+    <input type="password" placeholder="Type the new password again" name="confirm_password" id="confirm_password">
+
+    <button type="submit">Change Password</button>
+  </form>
+
+  <p><a href="/admin/dashboard">&lt;- Back</a></p>
+</body>
+</html>
+```
+
+Then the `change_password_form` handler.
+```Rust
+//! src/routes/admin/change_password/post.rs
+// [...]
+use actix_web::http::header::ContentType;
+use acitx_web_flash_messages::IncomingFlashMessages;
+use std::fmt::Write;
+
+pub async fn change_password_form(
+    flash_messages: IncomingFlashMessages,
+    session: TypedSession,
+) -> Result<HttpResponse, actix_web::Error> {
+    // [...]
+    let mut msg_html = String::new();
+    for msg in flash_messages.iter() {
+        writeln!(msg_html, "<p><i>{}</i></p>", msg.content())
+            .expect("Failed to write msg_html give incoming flash_messages");
+    }
+
+    Ok(HttpResponse::Ok()
+          .content_type(ContentType::html())
+          .body(format!(
+              include_str!("./change_password"),
+              msg_html = msg_html
+          )))
+}
+```
+
+With this our test should pass.
 
 #### 10.8.2.3. Unhappy Path: The Current Password Is Invalid
 
+What about if the current password is invalid? What steps do we need to go through?
 
+6. Add `error_flash_message_is_set_on_incorrect_current_password` test.
+    1. Update `change_password` handler to check validity of current password
+    2. Use `get_username` from `src/admin/admin_dashbooard.rs` to retrieve username from db.
+    3. Build `Credentials` and use `validate_credentials` to validate `current_password`
+
+Alright. Lets get to it
+
+**6. Add `error_flash_message_is_set_on_incorrect_current_password` test.**
+```Rust
+//! tests/api/change_password.rs
+// [...]
+
+#[tokio::test]
+async fn error_flash_message_is_set_on_incorrect_current_password() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    // Act & Assert 1 Succesfull Login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin_dashboard");
+
+    // Act & Assert 2 - Redirect To Change password on incorrect current email
+    let new_password = Uuid::new_v4().to_string();
+    let change_password_request = serde_json::json!({
+        "current_password": Uuid::new_v4().to_string();
+        "new_password": &new_password,
+        "confirm_password": &new_password,
+    });
+    let response = app.post_change_paswword(&change_password_request).await;
+    assert_on_redirect(&response, "/admin/change_password");
+
+    // Act & Assert 3 - Flash message rendered
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains("<p><i>The Current Password Is Incorrect.</i></p>"))
+    
+}
+```
+
+The test should fail
+
+![image.png](10_b_securing_our_api_files/6defc474-277a-4acd-ad7d-903f1a0cecc9.png)
+
+To make it pass we need to;  
+- **A. Update `change_password` handler to check validity of current password**
+- **B. Use `get_username` from `src/admin/admin_dashbooard.rs` to retrieve username from db.**
+- **C. Build `Credentials` and use `validate_credentials` to validate `current_password`**
+
+Lets start by first making the `get_username` function in `src/admin/admin_dashbaord.rs` public.
+```Rust
+//! src/routes/admin/admin_dashboard.rs
+// [...]
+
+// [...]
+
+pub async fn get_username(/**/) -> Result<String, anyhow::Error> {/**/}
+
+```
+
+We can then implement the `current_password` as follows.
+```Rust
+//! src/routes/admin/change_password/post.rs
+// [...]
+use sqlx::PgPool;
+
+use crate::authentication::{AuthError, Credentials, validate_credentials};
+
+// [...]
+
+pub async fn change_form(
+    db_pool: web::Data<PgPool>,
+    session: TypedSession,
+) -> Result<HttpResponse, actix_error::Error> {
+    let Some(user_id) = session.get_user_id().map_error(e500)? else {
+        return Ok(see_other("/login"));
+    };
+
+    // [...]
+
+    let username = get_username(&db_pool, user_id).await.map_err(e500)?;
+    let credentials = Credentials {
+        username,
+        password: form.0.current_password,
+    };
+
+    if let Err(e) = validate_credentials(&db_pool, credentails) {
+        match e {
+            AuthError::InvalidCredentials(_) => {
+                FlashMessage::error("The current password is incorrect.").send();
+                return Ok(see_other("/admin/change_password"));
+            }
+            AuthError::UnexpectedError(_) => {
+                return Err(e500(e).into())
+            }
+        }
+    };
+
+    todo!()
+    
+}
+```
+The test should pass.
 
 #### 10.8.2.4. Unhappy Path: The New Password Is Too Short
 
 
+Lets validate the `new_password` length. Following OWASP guidelines passwords should be longer that 12 characters but shorter than  
+129 characters.
+
+Lets get to it by;
+
+7. Add `error_flash_message_is_set_when_new_password_is_too_short`
+    1. Update `change_password` handler to check that `new_password` is between 12 and 128 characters.
+
+**7. Add `error_flash_message_is_set_when_new_password_is_too_short`**
+```Rust
+//! tests/api/change_password.rs
+// [...]
+
+#[tokio::test]
+async fn error_flash_message_is_set_when_new_password_is_too_short() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    // Act & Assert 1 - Successful Login.
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin_dashboard");
+    
+    // Act & Assert 2 - Redirect to /admin/change_password
+    let response = app.post_change_password(&serde_json::json!({
+        "current_password": app.test_user.password,
+        "new_password": "tooshort",
+        "confirm_password": "toostort"
+    })).await;
+    assert_on_redirect(&response, "/admin/change_password");
+    
+    // Act & Assert 3 - Error Flash Message rendered
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains("<p><i>New password is too short. Password should be between 12 and 128 characters.</i></p>"))
+}
+```
+
+The test should fail.
+
+![image.png](10_b_securing_our_api_files/886a9022-775b-4e6a-b903-f7aedd39350c.png)
+
+**A. Update `change_password` handler to check that `new_password` is between 12 and 129 characters.**
+```Rust
+//! src/routes/admin/change_password/post.rs
+// [...]
+
+// [...]
+
+pub async fn change_password(/**/) -> Result</**/> {
+    // [...]
+    let new_password_len = form.0.new_password.expose_secret().len();
+    if !(12..129).contains(&new_password_len) {
+        FlashMessage::error("New password is too short. Password should be more than 12 but less than 129 characters long.").send();
+        Ok(see_other("/admin/change_password"));
+    }
+
+    todo!()
+}
+```
+
+The test should pass.
 
 #### 10.8.2.5. Logout
 
+To be able to have successfully changed a password, it may be important to logout a user and then re-authenticate with their new credentials.  
+Lets implement the logout. What are the steps we need here?
 
+9. Add `logout_clears_session_state` test
+    1. Add `post_logout` test helper
+    2. Asserts that user was logged in by checking `admin_dashboard.html` content
+    3. Asserts that user was logged out by checking redirect to `login_form.html` and it contains a flash cookie message
+    4. Asserts that you cannot access `admin_dashboard.html` now that you've beeen logged out.
+    5. Update `admin_dashboard.html` to include logout form that posts to `/admin/logout`
+    6. Add `logout` handler.
+        1. Add a `logout` public method to `TypedSession`
+        2. Add flash message to `logout` handler on successful logout.
+        3. Update `login_form` handler to display all flash messages and not just errors
+
+Quite a number of tasks. Lets get to it.
+
+**9. Add `logout_clears_session_state` test.**
+> To start;  
+> **A. Add `post_logout` test helper.**
+```Rust
+//! tests/api/helpers
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn post_logout(&self) -> reqwest::Response {
+        self.client
+            .post(format!("{}/admin/logout", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/logout request in test.")
+    }
+}
+```
+We can then implement our test with the relevant assertions.
+> **A. Asserts that user was logged in by checking `admin_dashboard.html` content.**  
+> **B. Asserts that user was logged out by checking redirect to `login_form.html` and it contains a flash cookie message.**  
+> **C. Asserts that you cannot access `admin_dashboard.html` now that you've beeen logged out.**
+```Rust
+//! tests/api/change_password.rs
+// [...]
+
+#[tokio::test]
+async fn logout_clears_session_state() {
+    // Arrange
+    let app = spawn_app().await;
+
+    // Act & Assert 1 - Succesful login
+    let login_request = serde_json::json!({
+       "username": app.test_user.username,
+        "password": app.test_user.password
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin_dashboard");
+    // Follow redirect and assert Welcome message
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // Act & Assert 2 - Successful Logout
+    let response = app.post_logout().await;
+    assert_on_redirect(&response, "/login");
+    // Follow redirect - Logout flash message Rendered.
+    let login_html = app.get_login_html().await;
+    assert!(login_html.contains("<p><i>You've successfully logged out.</i></p>"));
+
+    // Act & Assert 3 - Cannot access admin
+    let response = app.get_admin_dashboard().await;
+    assert_on_redirect(&response, "/login");
+}
+```
+
+The test should fail because we don't have a handler for the `POST /admin/logout` request.
+
+![image.png](10_b_securing_our_api_files/2f323dbb-fed8-444f-b92c-2715607b2f42.png)
+
+Alright lets pass the test.  
+**6. Add `logout` handler.**
+> To start;  
+> **A. Add a `logout` public method to `TypedSession`**
+```Rust
+//! src/session_state.rs
+// [...]
+
+// [..]
+impl TypedSession {
+    // [...]
+    
+    fn clear(self) {
+        self.0.purge()
+    }
+
+    // [...]
+}
+```
+> We can then implement the `logout` hander and  
+> **2. Add flash message to `logout` handler on successful logout.**
+```Rust
+//! src/routes/admin/logout.rs
+use actix_web::HttpResponse;
+use actix_web_flash_messages::FlashMessage;
+
+use crate::{session_state::TypedSession, utils::{e500, see_other}};
+
+pub async fn logout(
+    session: TypedSession,
+) -> Result<HttpResponse, actix_web::Error> {
+    if session.get_user_id().map_error(e500)?.is_none() {
+        return Ok(see_other("/login"));
+    }
+    session.clear();
+    FlashMessage::info("You've been successfully logged out.").send();
+    Ok(see_other("/login"));
+}
+```
+> Finally we;
+> **C. Update `login_form` handler to display all flash messages and not just errors**
+```Rust
+//! src/routes/login/get.rs
+// [...]
+
+pub async fn login_form(/**/) -> Result<HttpResponse, actix_web::Error> {
+    // [...]
+    
+    // No filtering by level now. Remember to remove the import.
+    for msg in flash_messages.iter() { 
+        writeln!(msg_html, "<p><i>{}</i></p>", msg.content())
+            .("Failed to write flash message to msg_html.")
+    }
+}
+```
+
+
+The test should pass.
 
 #### 10.8.2.6. Happy Path: The Password Was Changed Successfully
 
 
+The stage is set now for the happy path. We want an admin user who is already logged in to navigate to the change password page, enter
+the valid values for the necessary fields and on succesful password update, a flash message with should be rendered on
+the change password page with the success message. Then we want to logout the user and login with the new credentials.
+
+This is what a breakdown implementation of the above looks like.
+
+10. Add `change_password_works` test.
+    1. Asserts succesful login and redirect to `/admin/dashboard`
+    2. Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message
+    3. Asserts on succesful logout with information logout flash message
+    4. Asserts on succesful login again with redirect to `/admin/dashboard`
+    5. Updates `change_password` handler to update user's new password by
+        1. Adds `change_password` to `authentication.rs` that handles db update of user password 
+        2. Adds `compute_password_hash` to `authenticate.rs` to compute the new password's hash.
+
+Lets go.  
+
+**10. Add `change_password_works` test.**
+> **A. Asserts succesful login and redirect to `/admin/dashboard`**  
+> **B. Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message**  
+> **C. Asserts on succesful logout with information logout flash message**  
+> **D. Asserts on succesful login again with redirect to `/admin/dashboard`**  
+```Rust
+//! test/arpi/helpers.rs
+// [...]
+
+#[tokio::test]
+async fn change_password_works() {
+    // Arrange
+    let app = spawn_app().await;
+
+    // Act & Assert 1 - Successful Login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin_dashboard");
+    
+    // Act & Assert 2 - Successful Password Change
+    let new_password = Uuid::new_v4().to_string();
+    let change_password_request = serde_json::json!({
+        "current_password": app.test_user.password,
+        "new_username": &new_password,
+        "confirm_password": &new_password
+    });
+    let response = app.post_change_password(&change_password_request).await;
+    assert_on_redirect(&response, "/admin/change_password");
+    // Flash message rendered
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains(r#"<p><i>You've successfully changed your password.</i></p>"#));
+    
+    // Act & Assert 3 - Successful logout.
+    let response = app.post_logout().await;
+    assert_on_redirect(&response, "/login")
+    let login_html = app.get_login_html().await
+    assert!(login_html.contains(r#"<p><i>You've been successfully logged out.</i></p>"#));
+    
+    // Act & Assert 4 - Successful Login with new credentials.
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": &new_password
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&respone, "/admin_dashboard");
+    
+}
+```
+
+As expected the test should fail.
+
+![image.png](10_b_securing_our_api_files/61a51cf7-b0e3-46c2-94dd-f0d52336389b.png)
+
+To get the assertions to pass, we need to;  
+**5. Update `change_password` handler to update user's new password**
+> We start by;  
+> **A. Adding `change_password` to `authentication.rs` that handles db update of user password**  
+> **B. Adding `compute_password_hash` to `authenticate.rs` to compute the new password's hash.**
+
+Let implement `comput_password_hash` and `change_password` first.
+```Rust
+//! src/authentication.rs
+// [...]
+use argon2::{
+    Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version, 
+    password_hash::{SaltString, rand_core::OsRng},
+};
+
+pub async fn change_password(
+    db_pool: &PgPool, 
+    password_hash: SecretString, 
+    user_id: Uuid
+) -> Result<(), anyhow::Error> {
+    let password_hash = spawn_blocking_with_tracing(
+        move || comput_password_hash(password_hash)
+    )
+    .await?
+    .context("Failed to compute password_hash.")?;
+
+    sqlx::query!(
+        r#"
+            UPDATE users
+                SET password_hash = $1
+            WHERE user_id = $2
+        "#,
+        password_hash.expose_secret(),
+        user_id
+    )
+    .execute(db_pool)
+    .await
+    .context("Failed to execute SQL query to change user password.")?;
+
+    Ok(())
+} 
+
+fn compute_password_hash(password_hash: SecretString) -> Result<SecretString, anyhow::Error> {
+    let salt = SaltString::generate(&mut OsRng);
+    let password_hash = Argon2::new(
+        Algorithm::Argon2id,
+        Version::V0x13,
+        Params::new(19000, 2, 1, None)
+            .expect("Failed to build Argon2 params."),
+    )
+    .hash_password(password_hash.expose_secret().as_bytes())?
+    .to_string();
+
+    Ok(SecretString::from(password_hash))
+}
+```
+
+Lets update the `change_password` handler.
+```Rust
+//! src/routes/admin/change_password/post.rs
+// [...]
+use crate::authentication;
+
+pub async fn change_password(/**/) -> Result</**/> {
+    // [...]
+    authentication::change_password(&db_pool, password_hash, user_id).await.map_err(e500)?;
+    FlashMessage::info("You've successfully changed your password.").send();
+    Ok(see_other("/admin/change_password"))
+}
+```
+
+With this our test should pass.
 
 ## 10.09. Refactoring.
 
@@ -2493,13 +3451,10 @@ _**Why?**_
 _**Question?**_  
 - Which indempotency test?
 
-
 ##### 10.09.0.0.1. Deep Dive: Summarize, ELI5, Connect
 
 
-
 ### 10.09.1. How To Write An `actix-web` middleware
-
 
 
 ## 10.10. Summary.
@@ -2515,12 +3470,9 @@ _**Why?**_
 _**Question?**_  
 None
 
-
 ##### 10.10.0.0.1. Deep Dive: Summarize, ELI5, Connect
 
 To remember when deploying
 
 1. Runs `cargo sqlx prepare`
 2. Remember to perform migrations the the remote DB.
-
-
