@@ -179,6 +179,16 @@ Mostly just coding sections
         - [x] Adds `change_password` to `authentication.rs` that handles db update of user password 
         - [x] Adds `compute_password_hash` to `authenticate.rs` to compute the new password's hash.
 - [ ] Refactoring
+  - [ ] Write initial `reject_anonymous_users` utility function for redirecting users to `login` if they are not signed in.
   - [ ] Writing a `reject_anonymous_users` actix middleware.
-
+    - [ ] Add `src/authentication/{mod,password,middleware}.rs` module
+      - [ ] Move original `src/authentication.rs` source code into `src/authentication/password.rs` module.
+      - [ ] Add a `UserId` wrapper type that wraps a `Uuid` and implement the `Display` and `Deref` traits for it.
+      - [ ] Implement `reject_anonymous_users`
+        - [ ] Pull session from `TypedSession`
+        - [ ] Insert `UserId` into request if `user_id` is present.
+        - [ ] Redirect to `login` if user is not present
+        - [ ] Update all handlers that request `user_id` to pull it from middleware request. Run server and inspect the logs.
+        - [ ] Update all routes to `/admin` to use the`reject_anonymous` middleware, using `actix_web::middleware`
+        
 
