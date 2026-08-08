@@ -13,7 +13,7 @@ async fn change_password_works() {
         "password": app.test_user.password
     });
     let response = app.post_login(&login_request).await;
-    assert_on_redirect(&response, "/admin_dashboard");
+    assert_on_redirect(&response, "/admin/dashboard");
 
     // NOTE: Act & Assert 2 - Successful password change.
     let new_password = Uuid::new_v4().to_string();
@@ -42,7 +42,7 @@ async fn change_password_works() {
         "password": new_password
     });
     let response = app.post_login(&login_request).await;
-    assert_on_redirect(&response, "/admin_dashboard");
+    assert_on_redirect(&response, "/admin/dashboard");
 }
 
 #[tokio::test]
@@ -56,7 +56,7 @@ async fn error_flash_message_is_set_when_new_password_is_too_short() {
         "password": app.test_user.password,
     });
     let response = app.post_login(&login_request).await;
-    assert_on_redirect(&response, "/admin_dashboard");
+    assert_on_redirect(&response, "/admin/dashboard");
 
     // NOTE: Act & Assert 2 - Redirect To /admin/change_password
     let change_password_request = serde_json::json!({
@@ -83,7 +83,7 @@ async fn error_flash_message_is_set_on_incorrect_current_password() {
         "password": app.test_user.password
     });
     let response = app.post_login(&login_request).await;
-    assert_on_redirect(&response, "/admin_dashboard");
+    assert_on_redirect(&response, "/admin/dashboard");
 
     // NOTE: Act & Assert 2 - Redirect to admin/change_password
     let new_password = Uuid::new_v4().to_string();
@@ -113,7 +113,7 @@ async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
         }))
         .await;
 
-    assert_on_redirect(&response, "/admin_dashboard");
+    assert_on_redirect(&response, "/admin/dashboard");
 
     // NOTE: Act & Assert 2 - Redirect Due to Password Mismatch
     let response = app

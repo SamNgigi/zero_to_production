@@ -11,7 +11,7 @@ async fn redirects_to_admin_dashboard_on_successful_login() {
 
     // NOTE: Act & Assert 1
     let response = app.post_login(&login_request).await;
-    assert_on_redirect(&response, "/admin_dashboard");
+    assert_on_redirect(&response, "/admin/dashboard");
 
     // NOTE: Act & Assert 2
     let admin_dashboard_html = app.get_admin_dashboard_html().await;

@@ -23,7 +23,7 @@ async fn logout_clears_session_state() {
         "password": app.test_user.password
     });
     let response = app.post_login(&login_request).await;
-    assert_on_redirect(&response, "/admin_dashboard");
+    assert_on_redirect(&response, "/admin/dashboard");
     let admin_dashboard_html = app.get_admin_dashboard_html().await;
     assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
 

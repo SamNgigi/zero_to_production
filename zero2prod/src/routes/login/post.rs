@@ -45,7 +45,7 @@ pub async fn login(
             session
                 .insert_user_id(user_id)
                 .map_err(|e| redirect_to_login(LoginError::Unexpected(e.into())))?;
-            Ok(see_other("/admin_dashboard"))
+            Ok(see_other("/admin/dashboard"))
         }
         Err(e) => {
             let e = match e {

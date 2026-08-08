@@ -106,10 +106,10 @@ impl TestApp {
 
     pub async fn get_admin_dashboard(&self) -> reqwest::Response {
         self.client
-            .get(format!("{}/admin_dashboard", self.address))
+            .get(format!("{}/admin/dashboard", self.address))
             .send()
             .await
-            .expect("Failed to execute GET /admin_dashboard request in test.")
+            .expect("Failed to execute GET /admin/dashboard request in test.")
     }
 
     pub async fn get_login_html(&self) -> String {

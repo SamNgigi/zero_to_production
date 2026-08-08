@@ -170,13 +170,15 @@ Mostly just coding sections
         - [x] Add a `logout` public method to `TypedSession`
         - [x] Add flash message to `logout` handler on successful logout.
         - [x] Update `login_form` handler to display all flash messages and not just errors
-    - [ ] Add `change_password_works` test.
-      - [ ] Asserts succesful login and redirect to `/admin/dashboard`
-      - [ ] Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message
-      - [ ] Asserts on succesful logout with information logout flash message
-      - [ ] Asserts on succesful login again with redirect to `/admin/dashboard`
-      - [ ] Updates `change_password` handler to update user's new password by
-        - [ ] Adds `change_password` to `authentication.rs` that handles db update of user password 
-        - [ ] Adds `compute_password_hash` to `authenticate.rs` to compute the new password's hash.
+    - [x] Add `change_password_works` test.
+      - [x] Asserts succesful login and redirect to `/admin/dashboard`
+      - [x] Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message
+      - [x] Asserts on succesful logout with information logout flash message
+      - [x] Asserts on succesful login again with redirect to `/admin/dashboard`
+      - [x] Updates `change_password` handler to update user's new password by
+        - [x] Adds `change_password` to `authentication.rs` that handles db update of user password 
+        - [x] Adds `compute_password_hash` to `authenticate.rs` to compute the new password's hash.
+- [ ] Refactoring
+  - [ ] Writing a `reject_anonymous_users` actix middleware.
 
 
