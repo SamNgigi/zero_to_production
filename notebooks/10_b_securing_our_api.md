@@ -90,7 +90,8 @@ We then stub the up appropriately then wire them up to `src/routes/mod.rs` and `
 
 Let start by adding initial contents of `login.html`, `get.rs`, `post.rs`and `mod.rs`.
 
-```HTML
+
+```Rust
 <!--src/routes/login/login.html-->
 
 <!DOCTYPE html>
@@ -187,7 +188,8 @@ encodes our input data in clear text as query parameters. Because query paramete
 
 To change this behavior we add `method` and `action` attribute to the `form` element as follows
 
-```HTML
+
+```Rust
 <!--src/routes/login/login.html-->
 <!--[...]-->
     <form method="POST" action="/login">
@@ -574,7 +576,8 @@ Alright, so we pass back the error message to the `GET /login`  endpoint as quer
 
 We need the `urlencoding` crate to appropriately encode our error messages into a URL format.
 
-```bash
+
+```Rust
 cargo add urlencoding
 ```
 
@@ -638,7 +641,8 @@ The OWASP provides a [cheatsheet](https://cheatsheetseries.owasp.org/cheatsheets
 guidelines we need to escape "code" characters that our application might inadvertently execute. 
 For this we have the `html-escape` crate. Lets use it 
 
-```bash
+
+```Rust
 cargo add html-escape
 ```
 
@@ -713,7 +717,8 @@ We add the `hmac` and `sha2` crates.
 > Attempted to generate a `hmac` using `sha3::Sha3_256` however this returns a `does not implement CoreProxy trait`.
 > Can look into it later but the immediate remedy is to default to `sha2::Sha256`
 
-```bash
+
+```Rust
 cargo add hmac sha2
 cargo remove sha3
 ```
@@ -1001,7 +1006,8 @@ impl TestApp {
 ```
 **Note:** because we use `.form` when buiding the `Client` we need to add it as part of the `reqwest` features
 
-```bash
+
+```Rust
 cargo add reqwests -F form
 ```
 
@@ -1147,7 +1153,8 @@ Our test fails because we are not yet setting the cookie in our implementation.
 Before we do there is a more ergonomic way for us to check for the existence of our flash message cookie through a dedicated API that `reqwests` gives us.  
 To use it we need to enable the feature
 
-```bash
+
+```Rust
 cargo add reqwests -F cookies
 ```
 
@@ -1776,7 +1783,8 @@ _**Summary**_
 
 **1. Add `actix-session` crate with `redis-session-rustls` feature enabled**.  
 
-```bash
+
+```Rust
 cargo add actix-session --feature redis-session-rustls
 ```
 
@@ -1885,7 +1893,8 @@ async fn main() -> anyhow::Result<()> {
 
 On dev we'll use docker for redis with a pretty similar approach to what we did for postgres with a `init_redis.sh`.  
 
-```bash
+
+```Rust
 #! scripts/init_redis.sh
 #!/usr/bin/env bash
 
@@ -1914,7 +1923,8 @@ fi
 
 We make the script executable and then run the script  
 
-```bash
+
+```Rust
 chmod +x ./scripts/init_redis.sh
 ./scripts/init_redis.sh
 ```
@@ -2079,14 +2089,16 @@ Alot to do. Lets get to it.
 **4. Add `admin_dashboard.html` and `admin_dashboard` handler.**   
 We need to add a new `admin` module.
 
-```bash
+
+```Rust
 $ mkdir src/routes/admin && touch src/routes/admin/admin_dashboard.{rs,html}
 $ touch src/routes/admin/mod.rs
 ```
 
 Then wire it up. Then lets add the `admin_dashboard.html`.
 
-```HTML
+
+```Rust
 <!--src/routes/login/admin/admin_dashboard.html-->
 <!DOCTYPE html>
 <html lang="en">
@@ -2450,7 +2462,9 @@ In this section we add the application admin user directly to the database with 
 4. Run migration
 
 **1. Create new migration to create default user.**  
-```bash
+
+
+```Rust
 sqlx migrate add seed_user
 ```
 
@@ -2491,10 +2505,12 @@ sqlx migrate add seed_user
   This would print the following PHC String formatted password hash;  
   `$argon2id$v=19$m=19456,t=2,p=1$yFIw2eHN2DJARIRpszlqHw$2M1pVj8UZBVT7fW1EN95oc0pPHrq4vfrzSeSSvIKBUc`
 
-  
 
 **3. Populate SQL query with the above values for inserting users.**  
+
+
 ```sql
+%%sql
 -- migrations\20260804053534_seed_user.sql
 -- Add migration script here.
 INSERT INTO users (user_id, username, password_hash)
@@ -2504,8 +2520,11 @@ VALUES (
     '$argon2id$v=19$m=19456,t=2,p=1$yFIw2eHN2DJARIRpszlqHw$2M1pVj8UZBVT7fW1EN95oc0pPHrq4vfrzSeSSvIKBUc'
 )
 ```
+
 **4. Run migration.**  
-```bash
+
+
+```Rust
 sqlx migrate run 
 ```
 
@@ -2597,7 +2616,6 @@ Lets get to it.
 > 
 > After adding the `change_password.rs` module ensure to update it to `tests/api/main.rs`  
 > We will also implement the `get_change_password` helper because our test will make use of it.
-
 
 ```Rust
 //! tests/api/helpers.rs
@@ -2705,7 +2723,6 @@ Lets TDD this functionality.
 >   - **A. Add `post_change_password` test helper.**  
 >   - **B. Add `src/routes/admin/password/post.rs` and implement initial skeleton**
 
-
 Lets start with the test helper.
 ```Rust
 //! tests/api/helpers.rs
@@ -2759,7 +2776,6 @@ The test should fail.
 
 ![image.png](10_b_securing_our_api_files/dc690cf9-15e6-4850-8910-a1d21018c9e6.png)
 
-
 Making the test pass is pretty straight forward. We apply similar logic we did to the `change_password_form` handler
 ```Rust
 //! src/routes/admin/change_password.rs
@@ -2792,7 +2808,6 @@ Lets start with checking that the new password and the confirmed password matche
    2. Update `dashboard.html` to include link to `"/admin/password"`
    3. Update `change_password` handler to insert `FlashMessage` error message if password values don't match
    4. Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.
-
 
 Lets start with the `get_change_password_html` test helper.
 ```Rust
@@ -2856,7 +2871,9 @@ This test should fail.
 Now to get the test to pass. 
 
 **2. Update `dashboard.html` to include link to `"/admin/password"`.**
-```HTML
+
+
+```Rust
 <!--src/routes/admin/admin_dashboard.html-->
 <!DOCTYPE html>
 <html lang="en">
@@ -2906,7 +2923,9 @@ pub async fn change_password(
 
 **4. Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.**  
 Lets start by adding the `change_password_form.html`
-```HTML
+
+
+```Rust
 <!--src/routes/admin/change_password/change_password.html-->
 <!DOCTYPE html>
 <html lang="en">
@@ -3078,7 +3097,6 @@ pub async fn change_form(
 The test should pass.
 
 #### 10.8.2.4. Unhappy Path: The New Password Is Too Short
-
 
 Lets validate the `new_password` length. Following OWASP guidelines passwords should be longer that 12 characters but shorter than  
 129 characters.
@@ -3279,11 +3297,9 @@ pub async fn login_form(/**/) -> Result<HttpResponse, actix_web::Error> {
 }
 ```
 
-
 The test should pass.
 
 #### 10.8.2.6. Happy Path: The Password Was Changed Successfully
-
 
 The stage is set now for the happy path. We want an admin user who is already logged in to navigate to the change password page, enter
 the valid values for the necessary fields and on succesful password update, a flash message with should be rendered on
@@ -3453,9 +3469,188 @@ _**Question?**_
 
 ##### 10.09.0.0.1. Deep Dive: Summarize, ELI5, Connect
 
+So far we have a couple of end points we've added that uses the same/similar logic to check if a user logged in.  
+One approach is to have a utility `reject_anonymous_users` function that we can reuse in the relevant handlers.
+```Rust
+//! src/routes/admin/change_password/post.rs
+// [...]
+use actix_web::error::InternalError;
+
+pub async fn reject_anonymous_users(
+    session: TypedSession,
+) -> Result<Uuid, actix_web::Error> {
+    match session.get_user_id().map_err(e500)? {
+        Some(user_id) => Ok(user_id),
+        None => {
+            let response = see_other("/login");
+            let e = anyhow::anyhow!("User is not signed in.");
+            Err(InternalError::from_response(e, response).into())
+        }
+    }
+}
+
+pub async fn change_password(/**/) -> Result</**/> {
+    let user_id = reject_anonymous_user(session).await?;
+    // [...]
+}
+```
+This works and we could go ahead and refactor all of the other relevant handlers. But can we do better?  
+What about writing an middleware that we can use to wrap all the priviledged endpoints?  
+Adventurous. Let's do it.
 
 ### 10.09.1. How To Write An `actix-web` middleware
 
+What would be required to write our custom middlware?  
+A complex more granular and powerful version would require understanding and utilizing the `Service` and `Transform` traits from `actix_web`.
+
+A more simpler straightforward approach is to make use of `actix_web::middleware`'s `from_fn` and `Next` which is as of now officially part of `actix_web`.
+We'll use this instead of the books original use of `actix_web_lab` crate that makes use of the similar named `from_fn` and `Next`.
+
+`from_fn` takes an asynchronous function as an argument and returns an `actix_web` middleware as output. The asynchrounous function must have a particular
+function signarture that takes in `ServiceRequest` and `Next` as arguments and returning a `ServiceRequest` result.
+
+Lets adapt `reject_anonymous_user` to follow these requirements. Lets lay out the steps.
+
+1. Add `src/authentication/{mod,password,middleware}.rs` module
+2. Move original `src/authentication.rs` source code into `src/authentication/password.rs` module.
+3. Add a `UserId` wrapper type that wraps a `Uuid` and implement the `Display` and `Deref` traits for it.
+4. Implement `reject_anonymous_users`
+    1. Pull session from `TypedSession`
+    2. Insert `UserId` into request if `user_id` is present.
+    3. Redirect to `login` if user is not present
+    4. Update all handlers that request `user_id` to pull it from middleware request. Run server and inspect the logs.
+    5. Update all routes to `/admin` to use the`reject_anonymous` middleware, using `actix_web::middleware`
+
+Let's get to it.
+> We'll jump to step 3 assuming that you've already done 1 & 2 on your own.
+>
+> We'll also group 3, 4.1 - 4.3 in one go because they are all in `src/authentication/middleware.rs`.
+>
+> Make sure to update `src/authentication/mod.rs` accordingly.
+
+**3. Add a `UserId` wrapper type that wraps a `Uuid` and implement the `Display` and `Deref` traits for it.**  
+**4. Implement `reject_anonymous_users`**
+>**1. Pull session from `TypedSession`**  
+>**2. Insert `UserId` into request if `user_id` is present.**  
+>**3. Redirect to `login` if user is not present**
+
+We implement a new-type wrapper `UserId` to prevent conflicts in the request map.  
+We our custom session type by using our implementation`TypeSession::from_request` of the actix-web's `FromRequest` trait.  
+We then perform a match inserting our `UserId` into the `req`, such that handlers like `change_password` can later extract it for use.  
+We redirect to login in the error variant.
+```Rust
+//! src/authentication/middleware.rs
+use actix_web::{
+    FromRequest, HttpMessage,
+    dev::{ServiceRequest, ServiceResponse},
+    body::MessageBody,
+    error::InternalError,
+    middleware::Next,
+};
+use uuid::Uuid;
+use std::ops::Deref;
+
+use crate::{session_state::TypedSession, utils::{e500, see_other}};
+
+#[derive(Copy, Clone, Debug)]
+pub struct UserId(Uuid);
+
+impl std::fmt::Display for UserId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Deref for UserId {
+    type Target = Uuid;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub async fn reject_anonymous_user(
+    mut req: ServiceRequest,
+    next: Next<impl MessageBody>,
+) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
+    let session = {
+        let (http_request, payload) = req.parts_mut();
+        TypedSession::from_request(http_request, payload).await
+    }?;
+
+    match session.get_user_id().map_err(e500)? {
+        Some(user_id) => {
+            req.extensions_mut().insert(UserId(user_id));
+            next.call(req).await
+        }
+        None => {
+            let response = see_other("/login");
+            let e = anyhow::anyhow!("User is not logged in.");
+            Err(InternalError::from_response(e, response).into())
+        }
+    }
+}
+```
+
+We can then;  
+**4. Update all handlers that request `user_id` to pull it from middleware request. Run server and inspect the logs.**  
+> Let start with the `change_password` handler.
+```Rust
+// src/routes/admin/change_password/post.rs
+// [...]
+use crate::authentication::{UserId, reject_anonymous_user};
+
+// [...]
+
+pub async fn change_password (
+    db_pool: web::Data<PgPool>,
+    form: web::Form<FormData>,
+    user_id: web::ReqData<UserId>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user_id = user_id.into_inner();
+    // [...]
+    
+}
+```
+
+Lets run one of our tests, the `you_must_be_logged_in_to_post_to_change_password` test. 
+The test should fail. 
+![image.png](10_b_securing_our_api_files/61d46ca0-1ea0-4770-bc86-e618932b0630.png)
+
+Lets inspect the logs to understand whats happening.
+
+![image.png](10_b_securing_our_api_files/4113b45f-bdd1-4b32-8478-bc7d0bc33195.png)
+
+This is expected because we've not wired up our middleware for use in the routes. Lets fix that
+
+**5. Update all routes to `/admin` to use the`reject_anonymous` middleware, using `actix_web::middleware`**
+```Rust
+// src/startup.rs
+// [...]
+use crate::authentication::middleware::reject_anonymous_users;
+
+// [...]
+
+async fn run(/**/) Result<Server, anyhow::Error> {
+    // [...]
+    let server = HttpServer::new(||{
+        App::new()
+            .wrap(/**/)
+            //[...]
+            .routes(/**/)
+            .service(
+                
+                web::scope("/admin")
+                    .wrap(actix_web::middleware::from_fn(reject_anonymous_users))
+                    .routes("/dashboard", web::get().to(admin_dashboard))
+                    .routes("/change_password", web::get().to(change_password))
+                    .routes("/change_password", web::post().to(change_password))
+                    .routes("/logout", web::post().to(logout))
+            )
+            .app_data(/**/)
+            // [...]
+    })
+}
+```
 
 ## 10.10. Summary.
 
