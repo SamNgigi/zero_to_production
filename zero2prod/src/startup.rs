@@ -7,6 +7,7 @@ use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
 use crate::{
+    authentication::reject_anonymous_users,
     config::{DBSettings, Settings},
     email_client::EmailClient,
     routes::{
@@ -100,14 +101,15 @@ async fn run(
             .route("/home", web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
-            .route("/admin/dashboard", web::get().to(admin_dashboard))
-            .route(
-                "/admin/change_password",
-                web::get().to(change_password_form),
-            )
-            .route("/admin/change_password", web::post().to(change_password))
-            .route("/admin/logout", web::post().to(logout))
             .route("/{name}", web::get().to(greet))
+            .service(
+                web::scope("/admin")
+                    .wrap(actix_web::middleware::from_fn(reject_anonymous_users))
+                    .route("/dashboard", web::get().to(admin_dashboard))
+                    .route("/change_password", web::get().to(change_password_form))
+                    .route("/change_password", web::post().to(change_password))
+                    .route("/logout", web::post().to(logout)),
+            )
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
             .route("/newsletters", web::post().to(publish_newsletter))

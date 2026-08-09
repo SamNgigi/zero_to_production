@@ -4,9 +4,8 @@ use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 
 use crate::{
-    authentication::{self, AuthError, Credentials, validate_credentials},
+    authentication::{self, AuthError, Credentials, UserId, validate_credentials},
     routes::admin::dashboard::get_username,
-    session_state::TypedSession,
     utils::{e500, see_other},
 };
 
@@ -20,11 +19,9 @@ pub struct FormData {
 pub async fn change_password(
     db_pool: web::Data<PgPool>,
     form: web::Form<FormData>,
-    session: TypedSession,
+    user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let Some(user_id) = session.get_user_id().map_err(e500)? else {
-        return Ok(see_other("/login"));
-    };
+    let user_id = *user_id.into_inner(); // NOTE: Dereferencing.
 
     if form.0.new_password.expose_secret() != form.0.confirm_password.expose_secret() {
         FlashMessage::error(
