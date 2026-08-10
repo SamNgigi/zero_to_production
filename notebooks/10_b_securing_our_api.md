@@ -3671,3 +3671,736 @@ To remember when deploying
 
 1. Runs `cargo sqlx prepare`
 2. Remember to perform migrations the the remote DB.
+
+_**Summary**_  
+So the book is kind enough to layout the steps in a similar fashion to how we've been working through the content.
+> For the sake of clarity I've updated the endpoint name to `/admin/publish_newsletter` which in our context means  
+> create newsletter issue + send newsletter issue
+
+**Port `POST /newsletters` to session-based authentication `POST /admin/publish_newsletter`**  
+  1. Add `send a newsletter issue` link to admin dashboard.
+  2. Add a HTML form at `GET /admin/publish_newsletter_form` to submit a new issue;
+  3. Adapt `POST /admin/publish_newsletter` to process the form data
+        1. Change the route to `POST /admin/publish_newsletter`
+        2. Migrate from 'Basic' to session-based authentication.
+        3. Use the `Form` extractor (`application/x-www-form-urlencoded`) instead of the `Json` extractor (`application/json`)
+              to handle the request body
+        4. Adapt the test suite.
+
+
+Lets get to it.  
+Lets add `src/routes/newsletter/{{mod,get,post}.rs,newsletter.html}`, where most of our implementation will sit.
+
+Also after evaulating our [current](https://github.com/SamNgigi/zero_to_production/blob/1e410b8df2855f4a366855fecdb484444711c338/zero2prod/tests/api/newsletter.rs) tests for newsetters we see that we are testing the endpoint against `Basic` Authentication.  
+Following TDD and the fact that we are now porting the implementation to session-based authentication, we can start
+our work by refactoring/adapting our tests.
+
+Ideally our `tests/newsletters.rs` should look very similar to `tests/change_password.rs`, with the following tests to drive our implementation.
+
+1. `you_must_be_logged_in_access_newsletter_form`
+2. `you_must_be_logged_in_to_post_to_newsletter`
+3. Adapting the following tests to be gated by authentication
+   - `newsletters_are_not_delivered_to_unconfirmed_subscribers`
+   - `newsletters_are_delivered_to_confirmed_subscribers`
+   - Might need to break down `newsletters_return_400_for_invalid_data`  test into
+       - `error_flash_message_is_set_on_missing_newsletter_title`
+       - `error_flash_message_is_set_on_missing_newsletter_body` 
+4. Add a `publish_newsletter_works` test.
+
+This allows us to remove our 'Basic' authentication tests.
+- `invalid_password_is_rejected_nl`
+- `non_existent_user_is_rejected_nl`
+- `requests_missing_authorization_are_rejected`.
+
+We can start by removing the above tests and 
+
+**1. Add `you_must_be_logged_in_to_access_newsletter_form`**.
+> Here we need to add a `get_newletter_form` test helper.
+```Rust
+// tests/helpers.rs
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn get_newsletter_form(&self) -> reqwest::Response {
+        self.client
+            .get(format!("{}/admin/publish_newsletter", &self.address))
+            .send()
+            .await
+            .except("Failed to execute GET /admin/newsletters request in test.")
+    }
+}
+```
+
+And then the test itself
+```Rust
+// tests/newsletter.rs
+// [...]
+
+async fn you_must_be_logged_in_to_access_publish_newsletter_form() {
+    // Arrange
+    let app = spawn_app().await;
+
+    // Act
+    let response = app.get_publish_newsletter_form().await;
+
+    // Assert
+    assert_on_redirect(&response, "/login");
+}
+```
+
+This test does not fail, as we'd expect. Why?  
+Lets inspect the logs.
+
+![image.png](10_b_securing_our_api_files/21a88cd2-7ea9-4312-92cd-146afa00ae0b.png)
+
+Rremember we have "protected" all `/admin` routes from anonymous users using our custom `reject_anonymous_users` middleware. Therefore  
+the request doesn't event get to reach `GET /admin/publish_newsletter` endpoint to be processed. Neat.
+
+That means that a test on `you_must_be_logged_in_to_post_to_publish_newsletter` will work as well.
+
+**2. Add `you_must_be_logged_in_to_post_to_publish_newsletter` test**
+> We already have the `post_newletters` helper. We just need to adapt it to use a form and remove the basic auth from the request.
+```Rust
+// tests/helpers.rs
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.client
+            .post(format!("{}/admin/publish_newsletter", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/publish_newsletter request in test.")
+    }
+    // [...]
+}
+```
+
+We haven't yet removed the original `post_newsletters` test helper. We'll remove it in a few. Lets go on implement the  actual
+`you_must_be_logged_in_to_post_to_publish_newsletter` test.
+```Rust
+// tests/newsletters.rs
+// [...]
+
+#[tokio::test]
+async fn you_must_be_logged_in_to_post_to_publish_newsletter() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "Newsletter title",
+            "content": {
+                "plain": "Newsletter as plain text",
+                "html": "<p>Newsletter as HTML</p>",
+            }
+        }))
+        .await;
+
+    dbg!(&response);
+
+    // NOTE: Assert
+    assert_on_redirect(&response, "/login");
+}
+```
+
+The test does not pass though.
+
+![image.png](10_b_securing_our_api_files/26c31b0f-6192-4592-9b4b-aecedd7ebfbc.png)
+
+The problem is with the `post_publish_newsletter` helper. 
+```Rust
+
+impl TestApp {
+    pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+            // [...]
+            .post(format!("{}/admin/publish_newsletter", &self.address))
+            .form(body) // <--  HERE
+            // [...]
+    }
+}
+```
+
+A quick google reveals the issue.
+
+![image.png](10_b_securing_our_api_files/9ddedae9-62c3-4091-ba46-9203e43e3068.png)
+
+
+
+We want to update the endpoint to use the `web::Form` extractor. Currently though we are testing the endpoint using nested json. Lets
+revert to json for now. 
+
+```Rust
+// tests/helpers.rs
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.client
+            .post(format!("{}/admin/publish_newsletter", &self.address))
+            .json(body)
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/publish_newsletter request in test.")
+    }
+
+    // [...]
+}
+
+```
+
+Our `you_must_be_logged_in_to_post_to_publish_newsletter` test passes due to our custom middleware.
+
+Ok we are now at;
+> 3. Adapting the following tests to be gated by authentication
+>  - `newsletters_are_not_delivered_to_unconfirmed_subscribers`
+>  - `newsletters_are_delivered_to_confirmed_subscribers`
+>  - Might need to break down `newsletters_return_400_for_invalid_data`  test into
+>      - `error_flash_message_is_set_on_missing_newsletter_title`
+>      - `error_flash_message_is_set_on_missing_newsletter_body` 
+
+To adapt/port the above tests successfully we have to
+- Add a successful login assertions
+- Update them to use our new `post_publish_newsletter` test helper.
+
+Lets start with the `newsletters_are_not_delivered_to_unconfirmed_subscribers` test.
+```Rust
+#[tokio::test]
+async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act & Assert 1 - Succesful Login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act & Assert 2 - Newsletters are not delivered to unconfirmed subs
+    create_unconfirmed_subscriber(&app).await;
+
+    Mock::given(any())
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&app.email_server)
+        .await;
+
+    let newsletter_request_body = serde_json::json!({
+        "title": "Newsletter title.",
+        "content": {
+            "plain": "Newsletter body as plain text",
+            "html": "<p>Newsletter body as HTML</p>"
+        }
+    });
+
+    let response = app.post_publish_newsletter(&newsletter_request_body).await;
+    assert_eq!(response.status().as_u16(), 200);
+}
+
+```
+
+Now our test fails.
+
+![image.png](10_b_securing_our_api_files/8a525b42-b764-4319-9f32-93c540bd3a65.png)
+
+And this is what we expected because we don't have the `GET /admin/publish_newsletter` end point.  
+Its seems the successful login assertions worked though. We can move with confidence knowing that the end point is appropriately gated.  
+
+To get this test to pass is straignt foward enough. We just need to update the endpoint in `startup.rs`
+
+```Rust
+// src/startup.rs
+// [...]
+
+// [...]
+
+async fn run(/**/) -> Result<Server, anyhow::Error> {
+    // [...]
+    let server = HttpServer::new(move || {
+        App::new()
+            .wrap(flash_messages.clone())
+            .wrap(SessionMiddleware::new(
+                session_store.clone(),
+                secret_key.clone(),
+            ))
+            .wrap(TracingLogger::default())
+            .route("/health_check", web::get().to(health_check))
+            .route("/", web::get().to(greet))
+            .route("/home", web::get().to(home))
+            .route("/login", web::get().to(login_form))
+            .route("/login", web::post().to(login))
+            .route("/{name}", web::get().to(greet))
+            .service(
+                web::scope("/admin")
+                    .wrap(actix_web::middleware::from_fn(reject_anonymous_users))
+                    .route("/dashboard", web::get().to(admin_dashboard))
+                    .route("/change_password", web::get().to(change_password_form))
+                    .route("/change_password", web::post().to(change_password))
+                    // We add tne route to the "admin" scope:w
+                    .route("/publish_newsletter", web::post().to(publish_newsletter))
+                    .route("/logout", web::post().to(logout)),
+            )
+            .route("/subscriptions", web::post().to(subscribe))
+            // We remove the `/newsletter` rounte
+            // [...]    
+    })
+    .listen(listener)?
+    .run();
+
+    Ok(server)
+}
+```
+
+Do our tests pass. Nope. We get another issue.
+
+![image.png](10_b_securing_our_api_files/08f00ac5-692e-45c6-abcf-2d96e4d4bc7b.png)
+
+We are getting a 401 (UnAuthorized request). What? Why? Lets do a `dbg!(&response)` in our test to see what the issue is.
+
+![image.png](10_b_securing_our_api_files/5bd15593-d35d-4d5c-8842-341ab28dd67f.png)
+
+Yup our [`publish_newsletter`](https://github.com/SamNgigi/zero_to_production/blob/40f754cb3326a0a4f721b4584c6a350255f43c3d/zero2prod/src/routes/admin/newsletter/post.rs) handler is still implementing 'Basic' authentication and inspecting the headers. Time to update the handler.
+
+We can effectively remove all the `basic_authentication` and `validate_credentials` logic. What if we still want to trace the `username` and `user_id`?
+For the `user_id` this is straight forward becase we already have it as part of the session. For the `username` we have a few options. The most straightforward;
+- Use the `get_username` function that retrievs the username from the db,
+- Insert `username` into the session during login.
+
+Let's leave that for later. Tracing using the `user_id` should be enough for now. Our `publish_newsletter` handler should now look like this.
+> Make sure to remove all unused imports.
+```Rust
+// src/routes/admin/newsletter/post.rs
+// [...]
+use crate::authentication::UserId;
+
+#[tracing::instrument(
+    name = "Publish Newsletter.",
+    skip(db_pool, email_client, body),
+    fields(
+        user_id = tracing::field::Empty,
+    )
+)]
+pub async fn publish_newsletter(
+    db_pool: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
+    body: web::Json<BodyData>,
+    // We revmoe the request parameter
+    user_id: web::ReqData<UserId>, // New Param
+) -> Result<HttpResponse, PublishError> {
+
+    // We now use the `user_id` that we retrieve from the session.
+    tracing::Span::current().record("user_id", tracing::field::display(*user_id.into_inner()));
+
+    let subscribers = get_confirmed_subscribers(&db_pool).await?;
+
+    // [...]
+}
+
+// We remove the `basic_authentication` function.
+
+struct ConfirmedSubscriber {
+    email: SubscriberEmail,
+}
+
+// [...]
+
+```
+
+Is this enough to make our test pass? Yup. Our test passes.
+
+Refactoring the `newsletters_are_delivered_to_confirmed_subscribers` test is straigh foward as wall
+- Adding the successful login assertion
+- Updating to using our new `post_publish_newsletter` test helper.
+
+This time our test should pass without needing to update anything else.
+
+Alright what about the `newsletters_return_400_for_invalid_data` test. This one might be a bit involved. 
+As we mentioned earlier, we might want to break it down into two tests, so that we can render a flash error message when we have
+- A missing title
+- Missing body/content.
+
+Also thinking a little more about how we want to implement the form for `publish_newsletter_form`, we might just want 2 fields
+- A title field
+- A content field.
+
+The we let the backend generated a the html version if necessary. Here we can leverage `pulldown-cmark` and `ammonia` crates for markdwon to 
+html conversion.
+
+Lets write the tests 
+> Lets update our `post_publish_newsletter` test helper to take 2 fields (title, content) as opposed to the nested content. We'll have a string content.
+```Rust
+// tests/helper.rs
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+            // [...]
+            .post(format!("{}/admin/publish_newsletter", &self.address))
+            .form(body) // <--  HERE
+            // [...]
+    }
+    // [...]
+}
+```
+
+We'll need to update the tests that were making using of the nested `content` field.
+
+We also need a `get_publish_newsletter_html()` test helper for asserting that our flash error message was rendered.
+
+```Rust
+// tests/helper.rs
+// [...]
+
+// [...]
+
+impl TestApp {
+    pub async fn get_publish_newsletter_html() -> String {
+        self.get_publish_newsletter()
+            .await
+            .text()
+            .await
+            .expect("Failed to decode HTML to valid text.")
+    }
+    // [...]
+}
+```
+
+Lets go ahead and ;
+**Add the `error_flash_message_is_set_when_a_newsletter_issue_is_missing_a_title**
+```Rust
+// tests/newsletter.rs
+// [...]
+
+#[tokio::test]
+async fn error_flash_message_is_set_on_missing_title_for_newsletter_issue() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act + Assert 1 - Succesful login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act + Assert 2 - Redirect to GET /admin/publish_newsletter on missing title
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "content": "Newsletter content"
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+
+    // NOTE: Act + Assert 3 - Flash Error message is rendered
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(publish_newsletter_html.contains(r#"<p><i>Newsletter is missing a title.</i></p>"#));
+}
+```
+
+The test should fail.
+
+![image.png](10_b_securing_our_api_files/5959ea44-6d67-402e-ab41-325214ece3f4.png)
+
+To make the test pass, we have to refactor our `publish_newsletter` handler again.   
+Now we need to port the implementation from using the `Json` extractor to `Form` extractor. Because `Form` doesn't allow nesting, we  
+also refactor from using a `Content` type that held both `html` & `plain` text. Our `FormData` will now just hold a title & content string.
+
+But what about differentiating between `HthmlBody` and `TextBody` required by postmark.  
+We'll lean on 2 `pulldown-cmark` and `ammonia` crates to convert the content string to html format that we'll use to populate the `HtmlBody`.
+
+After updating the handler our final code should looks similar to this
+```Rust
+// src/routes/admin/newsletter/post.rs
+// [...]
+use actix_web_flash_messages::FlashMessage;
+    
+use crate:: authentication::UserId;
+
+// [...]
+
+// We remove BodyData and Content & replace with FormData.
+#[derive(serde::Deserialize)]
+pub struct FormData {
+    title: String,
+    txt_content: String,
+}
+
+#[tracing::instrument(
+    name = "Publish Newsletter.",
+    skip(db_pool, email_client, form),
+    fields(
+        user_id = tracing::field::Empty,
+    )
+)]
+pub async fn publish_newsletter(
+    db_pool: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
+    form: web::Form<FormData>,
+    user_id: web::ReqData<UserId>,
+) -> Result<HttpResponse, PublishError> {
+    tracing::Span::current().record("user_id", tracing::field::display(*user_id.into_inner()));
+
+    let subscribers = get_confirmed_subscribers(&db_pool).await?;
+
+    if form.0.title.is_empty() {
+        FlashMessage::error("Newsletter issue is missing a title. Issue must have a title.").send();
+        return Ok(see_other("/admin/publish_newsletter"));
+    }
+
+    let html_content = get_html(&form.0.txt_content);
+
+    for sub in subscribers {
+        match sub {
+            Ok(subscriber) => email_client
+                .send_email(
+                    &subscriber.email,
+                    &form.0.title,
+                    &html_content,
+                    &form.0.txt_content,
+                )
+                .await
+                .with_context(|| {
+                    format!("Failed to send newsletter issue to {}", subscriber.email)
+                })?,
+            Err(error) => {
+                tracing::warn!(
+                    error.cause_chain = ?error,
+                    "Skipping confirmed subscriber. \
+                    Store contact details are invalid: {}",
+                    error
+                );
+            }
+        }
+    }
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+fn get_html(text: &str) -> String {
+    let parser = pulldown_cmark::Parser::new(text);
+    let mut html_output = String::new();
+    pulldown_cmark::html::push_html(&mut html_output, parser);
+    ammonia::clean(&html_output)
+}
+
+// [...]
+```
+
+We've added a `get_html` helper function to get html from the content string.
+
+Next we need to now implement the `publish_newsletter_form` handler and the `newsletter.html` to go with it.
+
+```Rust
+// src/routes/admin/newsletter/get.rs
+// [...]
+
+use actix_web::{HttpResponse, http::header::ContentType};
+use actix_web_flash_messages::IncomingFlashMessages;
+use std::fmt::Write;
+
+pub async fn publish_newsletter_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
+    let mut msg_html = String::new();
+    for msg in flash_messages.iter() {
+        writeln!(msg_html, "<p><i>{}</i></p>", msg.content())
+            .expect("Failed to write flash message content to msg_html");
+    }
+    HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(format!(
+            include_str!("./newsletter.html"),
+            msg_html = msg_html
+        ))
+}
+```
+```HTML
+<!--src/routes/admin/newsletter/newsletter.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content-type="text/html" charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newsletter Form</title>
+</head>
+<body>
+  <h4>Publish Newsletter Issue</h4>
+  {msg_html}
+  <form action="/admin/publish_newsletter" method="POST">
+    <label for="title">Title:</label>
+    <input type="text" placeholder="Newsletter Title" id="title">
+
+    <label for="newsletter_content">Content:</label>
+    <textarea 
+      name="txt_content" 
+      id="newsletter_content"
+      row= "4"
+      cols = "50"
+      placeholder="Type newsletter content here in markdown format."
+      >
+    </textarea>
+
+    <button type="submit">Publish</button>
+  </form>
+</body>
+</html>
+```
+
+With this our test should pass.
+
+Implementing the `error_flash_message_is_set_on_missing_content_for_newsletter_issue` is very straight forward.
+```Rust
+// tests/newsletter.rs
+
+#[todkio::test]
+async fn error_flash_message_is_set_on_missing_content_for_newsletter_issue() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act + Assert 1 - Succesful login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act + Assert 2 - Redirect to GET /admin/publish_newsletter on missing content
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "Newsletter title",
+            "txt_content": ""
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+
+    // NOTE: Act + Assert 3 - Flash Error message is rendered
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(publish_newsletter_html.contains(
+        r#"<p><i>Newsletter issue is missing content. Issue must have a content.</i></p>"#
+    )); 
+}
+```
+
+The test should fail.
+
+![image.png](10_b_securing_our_api_files/a8a25e6f-5054-4c15-b171-657f08d2529c.png)
+
+Now to make the test pass.
+```Rust
+// src/routes/admin/newsletter/post.rs
+// [...]
+
+// [...]
+
+pub async fn publish_newsletter(/**/) -> Result</**/> {
+    // [...]
+    
+   if form.0.txt_content.is_empty() {
+        FlashMessage::error("Newsletter issue is missing content. Issue must have a content.")
+            .send();
+        return Ok(see_other("/admin/publish_newsletter"));
+    }
+ 
+    // [...]
+}
+
+```
+
+With that our test should pass.
+
+Finally we can add a `publish_newsletter_works_test`
+```Rust
+// tests/api/newsletter.rs
+// [...]
+
+#[tokio::test]
+async fn publish_newsletter_works() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act + Assert 1 - Successful login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act + Assert 2 - Redirect to GET /admin/publish_newsletter
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "Newsletter title",
+            "txt_content": "Newsletter content."
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+
+    // NOTE: Act + Assert 3 - Publish newsletter successful flash message is rendered
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
+}
+
+```
+
+
+Test should fail.
+
+![image.png](10_b_securing_our_api_files/2d20ee55-3643-4be4-a48c-dd4b4feeb027.png)
+
+Currently when everything goes according to plan we are just returning a `200 OK`
+
+To get this test to pass, we just need to redirect to `GET /admin/publish_newsletter` with an info flash message communicating that the publish was successful.
+```Rust
+// src/routes/admin/newsletter/post.rs
+// [...]
+
+// [...]
+
+pub async fn publish_newsletter(/**/) -> Result</**/> {
+    // [...]
+    
+    FlashMessage::info("Newsletter Issue Published Successfully.").send();
+    Ok(see_other("/admin/publish_newsletter"))
+}
+```
+
+Our test pass. Now all that is left is remove the legacy `post_newsletter` test helper and `newsletters_return_400_for_invalid_data` test, then  
+run all the tests.
+> `newsletters_are_not_delivered_to_unconfirmed_subscribers` and `newsletters_are_delivered_to_confirmed_subscribers` tests might fail. Remember to adapt them
+> to take in form data instead of the original nested json and assert a redirect $303$ status code instead of $200$ status code.
+
