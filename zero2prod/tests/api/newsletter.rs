@@ -19,7 +19,7 @@ async fn error_flash_message_is_set_on_missing_content_for_newsletter_issue() {
     let admin_dashboard_html = app.get_admin_dashboard_html().await;
     assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
 
-    // NOTE: Act + Assert 2 - Redirect to GET /admin/publish_newsletter on missing title
+    // NOTE: Act + Assert 2 - Redirect to GET /admin/publish_newsletter on missing content
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",

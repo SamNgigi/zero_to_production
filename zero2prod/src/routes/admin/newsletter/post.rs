@@ -67,6 +67,12 @@ pub async fn publish_newsletter(
         return Ok(see_other("/admin/publish_newsletter"));
     }
 
+    if form.0.txt_content.is_empty() {
+        FlashMessage::error("Newsletter issue is missing content. Issue must have a content.")
+            .send();
+        return Ok(see_other("/admin/publish_newsletter"));
+    }
+
     let html_content = get_html(&form.0.txt_content);
 
     for sub in subscribers {
