@@ -128,40 +128,6 @@ async fn you_must_be_logged_in_to_access_publish_newsletter_form() {
 }
 
 #[tokio::test]
-async fn newsletters_return_400_for_invalid_data() {
-    // NOTE: Arrange
-    let app = spawn_app().await;
-    let test_cases = vec![
-        (
-            serde_json::json!({
-                "content": {
-                    "plain": "Newsletter as plain text",
-                    "html": "<p>Newsletter as plain text</p>",
-                }
-            }),
-            "Missing title",
-        ),
-        (
-            serde_json::json!({"title": "Newsletter title!"}),
-            "Missing content",
-        ),
-    ];
-
-    // NOTE: Act
-    for (invalid_data, error_msg) in test_cases {
-        let response = app.post_newsletters(invalid_data).await;
-
-        // NOTE: Assert
-        assert_eq!(
-            400,
-            response.status().as_u16(),
-            "The API did not fail with 400 Bad Request when payload was: {}",
-            error_msg
-        )
-    }
-}
-
-#[tokio::test]
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // NOTE: Arrange
     let app = spawn_app().await;
@@ -186,19 +152,16 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
         .mount(&app.email_server)
         .await;
 
-    let newsletter_request_body = serde_json::json!({
-        "title": "Newsletter title",
-        "content": {
-            "plain": "Newsletter as plain text",
-            "html": "<p>Newsletter as HTML</p>",
-        }
-    });
-
     // NOTE: Act
-    let response = app.post_publish_newsletter(&newsletter_request_body).await;
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "Newsletter title",
+            "txt_content": "Newsletter content."
+        }))
+        .await;
 
     // NOTE: Assert
-    assert_eq!(response.status().as_u16(), 200);
+    assert_eq!(response.status().as_u16(), 303);
 }
 
 #[tokio::test]
@@ -225,17 +188,13 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
         .mount(&app.email_server)
         .await;
 
-    let newsletter_request_body = serde_json::json!({
-        "title": "Newsletter title.",
-        "content": {
-            "plain": "Newsletter body as plain text",
-            "html": "<p>Newsletter body as HTML</p>"
-        }
-    });
-
-    let response = app.post_publish_newsletter(&newsletter_request_body).await;
-    dbg!(&response);
-    assert_eq!(response.status().as_u16(), 200);
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "Newsletter title",
+            "txt_content": "Newsletter content."
+        }))
+        .await;
+    assert_eq!(response.status().as_u16(), 303);
 }
 
 async fn create_confirmed_subscriber(app: &TestApp) {
