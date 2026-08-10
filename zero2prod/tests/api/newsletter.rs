@@ -5,6 +5,37 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn error_flash_message_is_set_on_missing_content_for_newsletter_issue() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act + Assert 1 - Succesful login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act + Assert 2 - Redirect to GET /admin/publish_newsletter on missing title
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "Newsletter title",
+            "txt_content": ""
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+
+    // NOTE: Act + Assert 3 - Flash Error message is rendered
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(publish_newsletter_html.contains(
+        r#"<p><i>Newsletter issue is missing content. Issue must have a content.</i></p>"#
+    ));
+}
+
+#[tokio::test]
 async fn error_flash_message_is_set_on_missing_title_for_newsletter_issue() {
     // NOTE: Arrange
     let app = spawn_app().await;
