@@ -74,6 +74,18 @@ async fn newsletters_return_400_for_invalid_data() {
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // NOTE: Arrange
     let app = spawn_app().await;
+
+    // NOTE: Act & Assert 1 - Succesful Login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act & Assert 2 - Newsletters are delivered to confirmed subs
     create_confirmed_subscriber(&app).await;
 
     Mock::given(path("/email"))
@@ -92,7 +104,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     });
 
     // NOTE: Act
-    let response = app.post_newsletters(newsletter_request_body).await;
+    let response = app.post_publish_newsletter(&newsletter_request_body).await;
 
     // NOTE: Assert
     assert_eq!(response.status().as_u16(), 200);
