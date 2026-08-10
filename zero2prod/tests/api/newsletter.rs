@@ -1,94 +1,39 @@
-use crate::helpers::{ConfirmationLinks, TestApp, spawn_app};
+use crate::helpers::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
 use wiremock::{
     Mock, ResponseTemplate,
     matchers::{any, method, path},
 };
 
-use uuid::Uuid;
-
 #[tokio::test]
-async fn invalid_password_is_rejected_nl() {
+async fn you_must_be_logged_in_to_post_to_publish_newsletter() {
     // NOTE: Arrange
     let app = spawn_app().await;
-    let username = &app.test_user.username;
-    let wrong_password = Uuid::now_v7().to_string();
 
     // NOTE: Act
-    let response = reqwest::Client::new()
-        .post(format!("{}/newsletters", &app.address))
-        .basic_auth(username, Some(wrong_password))
-        .json(&serde_json::json!({
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",
             "content": {
                 "plain": "Newsletter as plain text",
-                "html": "<p>Newsletter as plain text</p>",
+                "html": "<p>Newsletter as HTML</p>"
             }
         }))
-        .send()
-        .await
-        .expect("Failed to execute newsletter post request in test");
-
-    assert_eq!(401, response.status().as_u16());
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
-}
-
-#[tokio::test]
-async fn non_existent_user_is_rejected_nl() {
-    // NOTE: Arrange
-    let app = spawn_app().await;
-    let placeholder_credentials = Uuid::new_v4().to_string();
-
-    // NOTE: Act
-    let response = reqwest::Client::new()
-        .post(format!("{}/newsletters", &app.address))
-        .basic_auth(&placeholder_credentials, Some(&placeholder_credentials))
-        .json(&serde_json::json!({
-            "title": "Newsletter title",
-            "content": {
-                "plain": "Newsletter as plain text",
-                "html": "<p>Newsletter as plain text</p>",
-            }
-        }))
-        .send()
-        .await
-        .expect("Failed to execute newsletter post request in test");
+        .await;
 
     // NOTE: Assert
-    assert_eq!(401, response.status().as_u16());
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
+    assert_on_redirect(&response, "/login");
 }
 
 #[tokio::test]
-async fn requests_missing_authorization_are_rejected() {
+async fn you_must_be_logged_in_to_access_publish_newsletter_form() {
     // NOTE: Arrange
     let app = spawn_app().await;
 
     // NOTE: Act
-    let response = reqwest::Client::new()
-        .post(format!("{}/newsletters", &app.address))
-        .json(&serde_json::json!({
-            "title": "Newsletter Title",
-            "content": {
-                "plain": "Newsletter issue as plain text",
-                "html": "<p>Newsletter issue as plain text</p>"
-            }
-        }))
-        .send()
-        .await
-        .expect("Failed to execute post newsletter request in test");
+    let response = app.get_publish_newsletter().await;
 
     // NOTE: Assert
-    assert_eq!(401, response.status().as_u16());
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
+    assert_on_redirect(&response, "/login");
 }
 
 #[tokio::test]
@@ -157,9 +102,20 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     // NOTE: Arrange
     let app = spawn_app().await;
+
+    // NOTE: Act & Assert 1 - Succesful Login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act & Assert 2 - Newsletters are not delivered to unconfirmed subs
     create_unconfirmed_subscriber(&app).await;
 
-    // NOTE: Act
     Mock::given(any())
         .respond_with(ResponseTemplate::new(200))
         .expect(0)
@@ -174,9 +130,8 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
         }
     });
 
-    let response = app.post_newsletters(newsletter_request_body).await;
-
-    // NOTE: Assert
+    let response = app.post_publish_newsletter(&newsletter_request_body).await;
+    dbg!(&response);
     assert_eq!(response.status().as_u16(), 200);
 }
 

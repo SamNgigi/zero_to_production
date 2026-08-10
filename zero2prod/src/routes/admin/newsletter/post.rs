@@ -1,19 +1,13 @@
-use crate::{
-    authentication::{AuthError, Credentials, validate_credentials},
-    domain::SubscriberEmail,
-    email_client::EmailClient,
-};
+use crate::{authentication::UserId, domain::SubscriberEmail, email_client::EmailClient};
 use actix_web::{
-    HttpRequest, HttpResponse, ResponseError,
+    HttpResponse, ResponseError,
     http::{
         StatusCode,
-        header::{self, HeaderMap, HeaderValue},
+        header::{self, HeaderValue},
     },
     web,
 };
 use anyhow::Context;
-use base64::Engine;
-use secrecy::SecretString;
 use sqlx::PgPool;
 
 #[derive(Debug, thiserror::Error)]
@@ -55,9 +49,8 @@ pub struct Content {
 
 #[tracing::instrument(
     name = "Publish Newsletter.",
-    skip(db_pool, email_client, body, request),
+    skip(db_pool, email_client, body),
     fields(
-        username = tracing::field::Empty,
         user_id = tracing::field::Empty,
     )
 )]
@@ -65,18 +58,9 @@ pub async fn publish_newsletter(
     db_pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
     body: web::Json<BodyData>,
-    request: HttpRequest,
+    user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, PublishError> {
-    let credentials = basic_authentication(request.headers()).map_err(PublishError::Auth)?;
-    tracing::Span::current().record("username", tracing::field::display(&credentials.username));
-
-    let user_id = validate_credentials(&db_pool, credentials)
-        .await
-        .map_err(|e| match e {
-            AuthError::InvalidCredentials(_) => PublishError::Auth(e.into()),
-            AuthError::Unexpected(_) => PublishError::Unexpected(e.into()),
-        })?;
-    tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+    tracing::Span::current().record("user_id", tracing::field::display(*user_id.into_inner()));
 
     let subscribers = get_confirmed_subscribers(&db_pool).await?;
 
@@ -105,36 +89,6 @@ pub async fn publish_newsletter(
     }
 
     Ok(HttpResponse::Ok().finish())
-}
-
-fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
-    let header_value = headers
-        .get("Authorization")
-        .context("The 'Authorization' header was missing.")?
-        .to_str()
-        .context("The 'Authorization' header was not a valid UTF8 string.")?;
-    let base64encoded_segment = header_value
-        .strip_prefix("Basic ")
-        .context("The authentication scheme was not 'Basic'.")?;
-    let decoded_bytes = base64::engine::general_purpose::STANDARD
-        .decode(base64encoded_segment)
-        .context("Failed to base64-decode 'Basic' authentication credentails.")?;
-    let decoded_credentials = String::from_utf8(decoded_bytes)
-        .context("Decoded credentials was not valid UTF8 string.")?;
-
-    let mut credentials = decoded_credentials.splitn(2, ":");
-    let username = credentials
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("A username must be provided in 'Basic' auth."))?
-        .to_string();
-    let password = credentials
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("A password must be provided in 'Basic' auth."))?;
-
-    Ok(Credentials {
-        username,
-        password: SecretString::from(password),
-    })
 }
 
 struct ConfirmedSubscriber {

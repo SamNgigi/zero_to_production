@@ -108,11 +108,11 @@ async fn run(
                     .route("/dashboard", web::get().to(admin_dashboard))
                     .route("/change_password", web::get().to(change_password_form))
                     .route("/change_password", web::post().to(change_password))
+                    .route("/publish_newsletter", web::post().to(publish_newsletter))
                     .route("/logout", web::post().to(logout)),
             )
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
-            .route("/newsletters", web::post().to(publish_newsletter))
             // Registering connection as part of applicaton state
             .app_data(db_pool.clone())
             // Registering email client as part of application state
