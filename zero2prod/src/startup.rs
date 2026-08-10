@@ -12,7 +12,7 @@ use crate::{
     email_client::EmailClient,
     routes::{
         admin_dashboard, change_password, change_password_form, confirm, greet, health_check, home,
-        login, login_form, logout, publish_newsletter, subscribe,
+        login, login_form, logout, publish_newsletter, publish_newsletter_form, subscribe,
     },
 };
 
@@ -108,6 +108,10 @@ async fn run(
                     .route("/dashboard", web::get().to(admin_dashboard))
                     .route("/change_password", web::get().to(change_password_form))
                     .route("/change_password", web::post().to(change_password))
+                    .route(
+                        "/publish_newsletter",
+                        web::get().to(publish_newsletter_form),
+                    )
                     .route("/publish_newsletter", web::post().to(publish_newsletter))
                     .route("/logout", web::post().to(logout)),
             )

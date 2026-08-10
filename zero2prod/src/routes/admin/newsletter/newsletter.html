@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content-type="text/html" charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newsletter Form</title>
+</head>
+<body>
+  <h4>Publish Newsletter Issue</h4>
+  {msg_html}
+  <form action="/admin/publish_newsletter" method="POST">
+    <label for="title">Title:</label>
+    <input type="text" placeholder="Newsletter Title" id="title">
+
+    <label for="newsletter_content">Content:</label>
+    <textarea 
+      name="txt_content" 
+      id="newsletter_content"
+      row= "4"
+      cols = "50"
+      placeholder="Type newsletter content here in markdown format."
+      >
+    </textarea>
+
+    <button type="submit">Publish</button>
+  </form>
+</body>
+</html>

@@ -5,6 +5,37 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn error_flash_message_is_set_on_missing_title_for_newsletter_issue() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act + Assert 1 - Succesful login
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password,
+    });
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("<p>Welcome {}.</p>", app.test_user.username)));
+
+    // NOTE: Act + Assert 2 - Redirect to GET /admin/publish_newsletter on missing title
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "",
+            "txt_content": "Newsletter content"
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+
+    // NOTE: Act + Assert 3 - Flash Error message is rendered
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(publish_newsletter_html.contains(
+        r#"<p><i>Newsletter issue is missing a title. Issue must have a title.</i></p>"#
+    ));
+}
+
+#[tokio::test]
 async fn you_must_be_logged_in_to_post_to_publish_newsletter() {
     // NOTE: Arrange
     let app = spawn_app().await;
@@ -13,10 +44,7 @@ async fn you_must_be_logged_in_to_post_to_publish_newsletter() {
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",
-            "content": {
-                "plain": "Newsletter as plain text",
-                "html": "<p>Newsletter as HTML</p>"
-            }
+            "content": "Newsletter as plain text",
         }))
         .await;
 

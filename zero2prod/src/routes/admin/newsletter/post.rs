@@ -1,4 +1,3 @@
-use crate::{authentication::UserId, domain::SubscriberEmail, email_client::EmailClient};
 use actix_web::{
     HttpResponse, ResponseError,
     http::{
@@ -7,8 +6,13 @@ use actix_web::{
     },
     web,
 };
+use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use sqlx::PgPool;
+
+use crate::{
+    authentication::UserId, domain::SubscriberEmail, email_client::EmailClient, utils::see_other,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum PublishError {
@@ -35,21 +39,15 @@ impl ResponseError for PublishError {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct BodyData {
+#[derive(serde::Deserialize)]
+pub struct FormData {
     title: String,
-    content: Content,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct Content {
-    html: String,
-    plain: String,
+    txt_content: String,
 }
 
 #[tracing::instrument(
     name = "Publish Newsletter.",
-    skip(db_pool, email_client, body),
+    skip(db_pool, email_client, form),
     fields(
         user_id = tracing::field::Empty,
     )
@@ -57,21 +55,28 @@ pub struct Content {
 pub async fn publish_newsletter(
     db_pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
-    body: web::Json<BodyData>,
+    form: web::Form<FormData>,
     user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, PublishError> {
     tracing::Span::current().record("user_id", tracing::field::display(*user_id.into_inner()));
 
     let subscribers = get_confirmed_subscribers(&db_pool).await?;
 
+    if form.0.title.is_empty() {
+        FlashMessage::error("Newsletter issue is missing a title. Issue must have a title.").send();
+        return Ok(see_other("/admin/publish_newsletter"));
+    }
+
+    let html_content = get_html(&form.0.txt_content);
+
     for sub in subscribers {
         match sub {
             Ok(subscriber) => email_client
                 .send_email(
                     &subscriber.email,
-                    &body.title,
-                    &body.content.html,
-                    &body.content.plain,
+                    &form.0.title,
+                    &html_content,
+                    &form.0.txt_content,
                 )
                 .await
                 .with_context(|| {
@@ -89,6 +94,13 @@ pub async fn publish_newsletter(
     }
 
     Ok(HttpResponse::Ok().finish())
+}
+
+fn get_html(text: &str) -> String {
+    let parser = pulldown_cmark::Parser::new(text);
+    let mut html_output = String::new();
+    pulldown_cmark::html::push_html(&mut html_output, parser);
+    ammonia::clean(&html_output)
 }
 
 struct ConfirmedSubscriber {
