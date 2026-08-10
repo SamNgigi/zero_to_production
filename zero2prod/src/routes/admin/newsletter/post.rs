@@ -99,7 +99,8 @@ pub async fn publish_newsletter(
         }
     }
 
-    Ok(HttpResponse::Ok().finish())
+    FlashMessage::info("Newsletter Issue Published Successfully.").send();
+    Ok(see_other("/admin/publish_newsletter"))
 }
 
 fn get_html(text: &str) -> String {
