@@ -1,18 +1,194 @@
-### Axum Implementation - Naive Newsletter Delivery
+# TODOS
+### Securing Our API
 
-Want to implement everything from memory as best as I can<br/>
+Axum implementation TODOs.
 
-- [x] Add relevant tests
-    - [x] Add `test/api/newsletters.rs` module
-    - [x] `newsletters_are_not_delivered_to_unconfirmed_subscribers`
-    - [x] `newsletters_are_delivered_to_confirmed_subscribers`
-    - [x] `newsletter_returns_400_for_invalid_data`
-- [x] Naive implementation
-    - [x] Add `src/routes/newsletters.rs` module 
-    - [x] Implement skeleton `publish_newsletter` handler and update route
-    - [x] Add newsletter `BodyContent`
-    - [x] Implement `get_confirmed_subscribers`
-    - [x] Add `PublishError` for error handling
-    - [x] Flesh out final `publish_newsletter` implementation
-- [x] Ensure all tests are green
+- [ ] Password-based authentication.
+  - [x] Basic Authentication.
+    - [x] Add `request_mission_authorization_are_reject` test.
+    - [x] Add `basic_authentication` function to `newsletters.rs`.
+    - [x] Update `publish_newsletter` with `basic_authentication` call.
+    - [x] Add `AuthError` variant to `PublishError` enum and add corresponding match for `StatusCode::UNAUTHORIZED`.
+    - [x] Implement `ResponseError`'s `error_response` function for `PublishError` adding appropriate header value.
+    - [x] Update `app.post_newsletter()` with placeholder/dummy username and password.
+  - [x] Password Verification - Naive Approach.
+      - [x] Add users table.
+        - [x] Add `create_users_table` migration.
+        - [x]  Define `users` table.
+      - [x] Add `validate_credentials` function to `newsletter.rs`.
+      - [x] Update `publish_newsletter` with call to `validate_credentials`.
+      - [x] Add tracing instrumentation to `publish_newsletter`.
+      - [x] Add `add_test_user` function to `test/api/newsletter.rs`.
+      - [x] Update `spawn_app` to call `add_test_user`.
+      - [x] Add `test_user` method to `TestApp`.
+      - [x] Update `post_newsletters` method to user `test_user` credentials.
+  - [x] Password Storage.
+    - [x] Using `sha3` for a cryptographic hash for getting a `password_hash`.
+      - [x] Generate migration to update `password` column in `users` table to `password_hash`. 
+      - [x] Update `validate_credentials` to generate a `password_hash` from `credentials.password` using `sha3`.
+      - [x] Update `validate_credentials` to query on `password_hash` instead of `password`.
+      - [x] Add a `TestUser` struct with `generate` and `store` methods.
+      - [x] Add `test_user` field to `TestApp` and replace `add_test_user` and `test_user` functions with functionality  
+         provided by the `test_user` field in `TestApp`.
+    - [x] Argon2.
+      - [x] Config: Add the `argon2` as a dependency and initialize `hasher` in `validate_credentials`
+      - [x] Salting.
+        - [x] Add migration to add `salt` column to `users` table
+        - [x] Update query in `validate_credentials` to return `user_id`, `password_hash` & `salt`
+        - [x] Use `hasher` to generate a password hash from extracted `credentials.password` + `salt`
+      - [x] PHC Format String.
+        - [x] Use argon2's `PasswordHash` to get PHC formated string from stored `expected_password_hash`
+        - [x] Use argon2's `PasswordVerifer`'s `verify_password` to do the equality check
+        - [x] Drop the `salt` column
+      - [x] Update test: Use argon2's `password_hash::SaltString` to generate a `salt` & hash `test_user`'s password
+    - [x] Do Not Block The Async Executor.
+      - [x] Add `.with_span_events(FmtSpan::CLOSE)` to `fmt::layer` of `telemetry.rs` module
+      - [x] Add `get_stored_credentials` 
+      - [x] Inspect how long `Argon2::default().verify_password` takes adding a `tracing::info!` to check time elapsed
+      - [x] Add `verify_password_hash` and run it in  `tokio::task::spawn_blocking`
+      - [x] Add helper `spawn_blocking_with_tracing` in `src/telemery.rs`.
+    - [x] User Enumeration.
+      - [x] Add `non_existent_user_is_rejected` test.
+      - [x] Add `invalid_user_password_is_rejected` test.
+      - [x] Add default `expected_password_hash` and set default `user_id` to `None` pending updated from retrieved query.
+- [x] Serving HTML pages
+  - [x] Add `src/routes/home` module with `mod.rs` and `home.html`. Update `src/routes/mod.rs`.
+  - [x] Fill out `home.html` ensuring relevant meta tag with content type
+  - [x] Implement `home` handler in `mod.rs` and update `src/startup.rs` accordingly.
+- [ ] Login
+  - [x] Add `src/routes/login` module with initial
+    - [x] `src/routes/login/mod.rs`
+    - [x] `src/routes/login/get.rs` with `login_form` handler
+    - [x] `src/routes/login/login.html`
+    - [x] `src/routes/login/post.rs` with `login` handler
+    - [x] Update `src/routes/mod.rs`  & `src/startup.rs` accordingly.
+  - [x] HTML Forms
+    - [x] Update `src/routes/login/get.rs`'s `login_form` handler passing the html page to be rendered
+    - [x] Update `src/routes/login/login.html` `form` tag with appropriate `action` and `method` attribute
+  - [x] Update `login` handler with a redirection on success 
+  - [x] Processing Form Data
+    - [x] Add `src/authentication.rs` module with initial `AuthError` enum with relevant variants
+    - [x] Extract the following to the authentication module returning the appropriate `AuthError` instead of `PublishError`
+      - [x] `Credentials` struct
+      - [x] `validate_credentials`
+      - [x] `verify_password_hash`
+      - [x] `get_stored_credentials`
+    - [x] Refactor `src/routes/newsletter.rs` module mapping `validate_credentials`  errors accordingly to `PublishError`
+    - [x] Add `LoginError` with relevant variants to `src/routes/login/login.rs` module
+    - [x] Add `ResponseError` implementation of `status_code` for `LoginError`
+    - [x] Flesh out the `login` handler to return a result with successful redirect in the `Ok` case and appropriate
+       `LoginError` in the `Err` case
+  - [x] Contextual Errors
+    - [x] Note trying to render `login.html` in `error_response` trait implementation for `LoginError` with error included.
+    - [x] Redirect back to `login_form` handler from `error_response` with errors included as query params i.e. `/login?error={}`
+    - [x] Extract error query params in `login_form` via `web::Query` and render the error by formatting them as part of the rendered
+          `login.html`
+    - [x] Explore potentials [XSS](https://owasp.org/www-community/attacks/xss) attacks when errors are returned as query params
+    - [x] `html-escape` error query params as potential solution to [XSS](owasp.org/www-community/attacks/xss)
+    - [x] Add more robust HMAC tag to query params ensuring we can validate our own messages
+      - [x] Attempt adding hmac tag with secret in `error_response`'s implementation for LoginError
+      - [x] Refactor error redirection back to `login` hander from the `error_response` to allow passing of the `secret_key`
+            used for creating hmac tag
+      - [x] Wireup `secret_key` as part of application state from configs to `startup.rs` to `login`.
+      - [ ] TODO IN PRODUCTION: ADD SECRET KEY
+      - [x] Wrap `LoginError` as part of `actix_web::error::InternalError`
+      - [x] Wrap `secret_key` in a `HMAC` type when injecting it into app state
+    - [x] Verifying The HMAC Tag
+      - [x] Update `QueryParams` struct to include `tag`. `error` and `tag` are not optional
+      - [x] `query` is now `Option<web::Query<QueryParams>>`. Handle accordingly in `login_form`
+      - [x] Add and implement `verify` function for `QueryParams`.
+      - [x] Call `verify` appropriately in `login_form` handler logging a warning incase verification fails
+    - [x] Cookie error flash messages
+      - [x] Add initial implementation `an_error_flash_message_cookie_is_set_on_failure` test.
+      - [x] Add `get_login_html` test helper where we'll read our error flash messages cookies.
+      - [x] Update `TestApp` to include a `client: reqwest::Client` field that will help us persist a cookie set across multiple sessions.
+      - [x] Make our flash message cookie ephemiral by setting `Max-Age` to 0.
+      - [x] Make our flash message cookie secure by using `actix-web-flash-messages` crate as our middleware for handling cookies.
+- [ ] Sessions
+  - [x] Why Redis as a session Store? In Memory RAM storage that provides rapid access to a session + native support for expiration
+  - [ ] `actix-session`
+    - [x] Add `actix-session` with `redis-session-rustls` feature.
+    - [x] Add `scripts/init_redis.sh` for adding reddis to our application via docker.
+    - [x] TODO IN PRODUCTION: ADD REDIS
+    - [x] Wire up `actix-session`'s `SessionMiddlewar` in `startup.rs`'s `run` routine
+    - [x] Wire up redis from `base_configuration.yaml` to `config.rs`.
+  - [ ] Admin Dashboard
+    - [x] Add `redirect_to_dashboard_after_login_success` test
+      - [x] Add `get_admin_dashboard_html` test helper
+      - [x] Update `login` hander to do appropriate redirection on successful login 
+        - [x] insert `user_id` in session state to pass to `admin_dashboard` handler
+        - [x] Add `redirect_to_login` helper in `src/routes/login/post.rs` that handles redirects to login when login attempts fail
+      - [x] Add `admin_dashboard` handler
+        - [x] Wire up handler to routes in `startup.rs`
+        - [x] Add an initial `admin_dashboard.html` with welcom message
+        - [x] Add an opaque `e500` helper functions that handles
+          - [x] Unexpected errors from getting `user_id` from session.
+          - [x] Unexpected errors from  `get_username` function that returns `username` from db given `user_id`
+        - [x] Update response to pass `username` to `admin_dashboard.html`.
+        - [x] Update `login` handler with `session.renew` before inserting `user_id` into the session.
+        - [x] Add `you_must_be_logged_in_to_access_admin_dashboard` test
+          - [x] Split out `get_admin_dashboard` from `get_admin_dashboard_html` that we'll call in the test above
+        - [x] Add redirect to `login` if `user_id` was not part of the session.
+        - [x] Implement a custom `TypedSession` to wrap `actix_session`'s `Session`
+          - [x] Implement `TypeSession` as a custom `actix_web` extractor
+          - [x] Update `login` and `admin_dashboard` handlers to use `TypedSession`
+- [ ] Seed Users
+  - [ ] Database Migration
+    - [x] Create new migration to create default user
+    - [x] Generate `Uuidv7` for `user_id`, `admin` for `username` and PHC String format password hash for `password_hash`.
+    - [x] Populate SQL query with the above values for inserting users.
+    - [x] Run migration
+  - [ ] Password Reset
+    - [x] Add `tests/api/change_password.rs`
+    - [x] Add `you_must_be_logged_in_to_access_change_password_form` 
+      - [x] Add `get_change_password` test helper.
+      - [x] Add password module - `src/routes/admin/password/{mod,get}.rs + change_password.html`
+      - [x] Implement skeleton for `change_password_form` handler. 
+      - [x] Move `e500` to a `src/utils.rs` module as a error handler to session insertion and extraction failure mode.
+      - [x] Add `see_other` helper to `src/utils.rs` to handle redirections.
+    - [x] Add `you_must_be_logged_in_to_post_to_change_password()`
+      - [x] Add `post_change_password` test helper.
+      - [x] Add `src/routes/admin/password/post.rs` and implement initial skeleton
+    - [x] Update `dashboard.html` to include link to `"/admin/password"`
+    - [x] Add `error_flash_message_is_set_on_new_password_fields_mismatch` test
+      - [x] Add `get_change_password_html` test helper that returns `change_password_form.html` as text.
+      - [x] Update `change_password` handler to insert `FlashMessage` error message if password values don't match.
+      - [x] Update `change_password_form` handler to extract the flash message errors and display in `change_password_form.html`.
+    - [x] Add `error_flash_message_is_set_on_invalid_current_password` test.
+      - [x] Update `change_password` handler to check validity of current password
+        - [x] Use `get_username` from `src/admin/admin_dashbooard.rs` to retrieve username from db.
+        - [x] Build `Credentials` and use `validate_credentials` to validate `current_password`
+    - [x] Add `error_flash_message_is_set_when_new_password_is_too_short`
+      - [x] Update `change_password` handler accordingly.
+    - [x] Add `logout_clears_session_state` test
+      - [x] Add `post_logout` test helper
+      - [x] Asserts that user was logged in by checking `admin_dashboard.html` content
+      - [x] Asserts that user was logged out by checking redirect to `login_form.html` and it contains a flash cookie message
+      - [x] Asserts that you cannot access `admin_dashboard.html` now that you've beeen logged out.
+      - [x] Update `admin_dashboard.html` to include logout form that posts to `/admin/logout`
+      - [x] Add `logout` handler.
+        - [x] Add a `logout` public method to `TypedSession`
+        - [x] Add flash message to `logout` handler on successful logout.
+        - [x] Update `login_form` handler to display all flash messages and not just errors
+    - [x] Add `change_password_works` test.
+      - [x] Asserts succesful login and redirect to `/admin/dashboard`
+      - [x] Asserts on succesful password reset on redirection to `/admin/dashboard` with informational flash message
+      - [x] Asserts on succesful logout with information logout flash message
+      - [x] Asserts on succesful login again with redirect to `/admin/dashboard`
+      - [x] Updates `change_password` handler to update user's new password by
+        - [x] Adds `change_password` to `authentication.rs` that handles db update of user password 
+        - [x] Adds `compute_password_hash` to `authenticate.rs` to compute the new password's hash.
+- [ ] Refactoring
+  - [x] Write initial `reject_anonymous_users` utility function for redirecting users to `login` if they are not signed in.
+  - [ ] Writing a `reject_anonymous_users` actix middleware.
+    - [ ] Add `src/authentication/{mod,password,middleware}.rs` module
+      - [ ] Move original `src/authentication.rs` source code into `src/authentication/password.rs` module.
+      - [ ] Add a `UserId` wrapper type that wraps a `Uuid` and implement the `Display` and `Deref` traits for it.
+      - [ ] Implement `reject_anonymous_users`
+        - [ ] Pull session from `TypedSession`
+        - [ ] Insert `UserId` into request if `user_id` is present.
+        - [ ] Redirect to `login` if user is not present
+        - [ ] Update all handlers that request `user_id` to pull it from middleware request. Run server and inspect the logs.
+        - [ ] Update all routes to `/admin` to use the`reject_anonymous` middleware, using `actix_web::middleware`
+        
 
