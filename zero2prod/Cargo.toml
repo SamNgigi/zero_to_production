@@ -12,6 +12,7 @@ name = "zero2prod"
 
 [dependencies]
 anyhow = "1.0.102"
+argon2 = { version = "0.5.3", features = ["std"] }
 axum = "0.8.8"
 chrono = { version = "0.4.44", default-features = false, features = ["clock"] }
 config = { version = "0.15.22", default-features = false, features = ["yaml"] }

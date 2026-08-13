@@ -2,7 +2,7 @@
 ### Securing Our API
 
 - [ ]  Login: Add `tests/login.rs` module.
-    - [ ]  Add `an_error_flash_message_is_set_on_failure` test.
+    - [ ]  Add `an_error_flash_message_is_set_on_failure` test. (This will require us to set up sesions)
         - [ ]  Add `post_login` test helper & `get_login_html` test helper.
         - [ ]  Create `users` table with `user_id`, `username` and `password_hash` columns.
         - [ ]  Add login module
@@ -20,9 +20,9 @@
                 - [ ]  Add `login.html`
                 - [ ]  Pull our error flash messages and render them to the html
     - [ ]  Add `redirects_to_admin_dashboard_on_successful_login` test
-        - [ ]  Add `get_admin_dashboard_html` test helper.
+        - [ ] Add `get_admin_dashboard_html` test helper.
+        - [ ] Add `scripts/init_redis.sh` for our session storage
         - [ ]  Add `tower-sessions` and insert `user_id` in `login` handler on successful `validate_credentials`  
-            - [ ] Add `scripts/init_redis.sh`.
             - [ ]  Redirect to admin dashboard. Use `see_other` for the redirect
             - [ ]  Add `src/routes/admin` moodule
                 - [ ]  Flesh out  `admin_dashboard.html` and `admin_dashboard` handler.
