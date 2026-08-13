@@ -10,6 +10,17 @@ use zero2prod::{
     telemetry,
 };
 
+pub fn assert_on_redirect(response: &reqwest::Response, destination: &str) {
+    assert_eq!(response.status().as_u16(), 303);
+    assert_eq!(
+        response
+            .headers()
+            .get("Location")
+            .expect("Failed to get location header"),
+        destination
+    );
+}
+
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
@@ -23,6 +34,34 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn get_login_html(&self) -> String {
+        self.get_login()
+            .await
+            .text()
+            .await
+            .expect("Failed to decode HTML to valid String text in test.")
+    }
+
+    pub async fn get_login(&self) -> reqwest::Response {
+        reqwest::Client::new()
+            .get(format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET /login request in test")
+    }
+
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        reqwest::Client::new()
+            .post(format!("{}/login", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute POST /login request in test.")
+    }
+
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         reqwest::Client::new()
             .post(format!("{}/newsletters", &self.address))
