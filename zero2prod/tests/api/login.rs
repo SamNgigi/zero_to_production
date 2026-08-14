@@ -14,6 +14,7 @@ async fn error_flash_message_is_set_on_login_failure() {
             "password": Uuid::new_v4().to_string(),
         }))
         .await;
+    dbg!(&response);
     assert_on_redirect(&response, "/login");
 
     // NOTE: Act & Assert 2 - Flash Error Message rendered
