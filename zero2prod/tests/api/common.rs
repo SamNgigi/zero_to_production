@@ -1,4 +1,8 @@
-use secrecy::SecretString;
+use argon2::{
+    Argon2, PasswordHasher,
+    password_hash::{SaltString, rand_core::OsRng},
+};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;
 use uuid::Uuid;
@@ -27,6 +31,7 @@ pub struct TestApp {
     pub email_server: MockServer,
     pub port: u16,
     pub client: reqwest::Client, // new field
+    pub test_user: TestUser,
 }
 
 pub struct ConfirmationLinks {
@@ -35,6 +40,22 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        self.get_admin_dashboard()
+            .await
+            .text()
+            .await
+            .expect("Failed to decode HTML to valid text in test.")
+    }
+
+    pub async fn get_admin_dashboard(&self) -> reqwest::Response {
+        self.client
+            .get(format!("{}/admin/dashboard", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET /admin/dashboard request in test.")
+    }
+
     pub async fn get_login_html(&self) -> String {
         self.get_login()
             .await
@@ -105,6 +126,44 @@ impl TestApp {
     }
 }
 
+pub struct TestUser {
+    user_id: Uuid,
+    pub username: String,
+    pub password: SecretString,
+}
+
+impl TestUser {
+    fn generate() -> Self {
+        let test_user = Uuid::now_v7();
+        Self {
+            user_id: test_user,
+            username: test_user.to_string(),
+            password: "everythinghastostartfromsomewhere".into(),
+        }
+    }
+
+    async fn store(&self, db_pool: &PgPool) {
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::default()
+            .hash_password(self.password.expose_secret().as_bytes(), &salt)
+            .expect("Failed to generate password hash in test.")
+            .to_string();
+
+        sqlx::query!(
+            r#"
+                INSERT INTO users (user_id, username, password_hash)
+                VALUES ($1, $2, $3)
+            "#,
+            self.user_id,
+            self.username,
+            password_hash,
+        )
+        .execute(db_pool)
+        .await
+        .expect("Failed to execute SQL query to store test user credentials.");
+    }
+}
+
 // INFO: Ensuring that the `tracing` stack is only initialized once using `std::sync::LazyLock`.
 // Replaces `once_cell::sync::Lazy`.
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -151,13 +210,17 @@ pub async fn spawn_app() -> TestApp {
     tokio::spawn(app.run_until_stopped());
 
     // return TestApp
-    TestApp {
+    let test_app = TestApp {
         address,
         db_pool: get_connection_pool(&configuration.db),
         email_server,
         port,
         client,
-    }
+        test_user: TestUser::generate(),
+    };
+
+    test_app.test_user.store(&test_app.db_pool).await;
+    test_app
 }
 
 async fn configure_db(config: &DBSettings) -> PgPool {

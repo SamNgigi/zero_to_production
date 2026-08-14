@@ -2,23 +2,23 @@
 ### Securing Our API
 
 - [ ]  Login: Add `tests/login.rs` module.
-    - [ ]  Add `an_error_flash_message_is_set_on_failure` test. (This will require us to set up sesions)
-        - [ ]  Add `post_login` test helper & `get_login_html` test helper.
-        - [ ]  Create `users` table with `user_id`, `username` and `password_hash` columns.
-        - [ ]  Add login module
-            - [ ]  Implement initial `login_form` and `login` handler sketelons
-            - [ ]  Flesh out `login` handler
-                - [ ]  Add authentication module
-                    - [ ]  Implement `validate_credentials`
-                        - [ ]  Implement `AuthError`
-                    - [ ]  Implement `get_stored_credentials` 
-                    - [ ]  Implement `verify_password_hash` 
-                - [ ]  Add `actix_messages` & `tower_sessions-cookie_store` for cookie based [flash messages](https://share.google/aimode/rwyMYTQGTFondimLP).
-                - [ ]  Add `utils.rs` module with a `see_other` util function.
-                - [ ]  Add `redirect_to_login` helper
-            - [ ]  Flesh out `login_form` handler
-                - [ ]  Add `login.html`
-                - [ ]  Pull our error flash messages and render them to the html
+    - [x]  Add `an_error_flash_message_is_set_on_failure` test. (This will require us to set up sesions)
+        - [x]  Add `post_login` test helper & `get_login_html` test helper.
+        - [x]  Create `users` table with `user_id`, `username` and `password_hash` columns.
+        - [x]  Add login module
+            - [x]  Implement initial `login_form` and `login` handler sketelons
+            - [x]  Flesh out `login` handler
+                - [x]  Add authentication module
+                    - [x]  Implement `validate_credentials`
+                        - [x]  Implement `AuthError`
+                    - [x]  Implement `get_stored_credentials` 
+                    - [x]  Implement `verify_password_hash` 
+                - [x]  Add `actix_messages` & `tower_sessions-cookie_store` for cookie based [flash messages](https://share.google/aimode/rwyMYTQGTFondimLP).
+                - [x]  Add `utils.rs` module with a `see_other` util function. NOT NEEDED.
+                - [ ]  Add `redirect_to_login` helper. NOT NEEDED.
+            - [x]  Flesh out `login_form` handler
+                - [x]  Add `login.html`
+                - [x]  Pull our error flash messages and render them to the html
     - [ ]  Add `redirects_to_admin_dashboard_on_successful_login` test
         - [ ] Add `get_admin_dashboard_html` test helper.
         - [ ] Add `scripts/init_redis.sh` for our session storage

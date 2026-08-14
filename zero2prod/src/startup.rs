@@ -133,7 +133,6 @@ fn build_router(
         base_url: Arc::new(ApplicationBaseUrl(base_url)),
     };
     let secret_key = Key::from(secret_key.expose_secret().as_bytes());
-    // let config = CookieSessionConfig::default().with_secure(false);
     let config = CookieSessionConfig::default();
     Router::new()
         .route("/health_check", get(health_check))
