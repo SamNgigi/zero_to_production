@@ -16,7 +16,7 @@ pub enum AppError {
     #[error("{0}")]
     Validation(String),
 
-    #[error("Something went wrong. Please try again.")]
+    #[error("Something went wrong. Please try again later.")]
     Unexpected(#[from] anyhow::Error),
 }
 

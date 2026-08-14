@@ -26,6 +26,7 @@ pub struct TestApp {
     pub db_pool: PgPool,
     pub email_server: MockServer,
     pub port: u16,
+    pub client: reqwest::Client, // new field
 }
 
 pub struct ConfirmationLinks {
@@ -43,7 +44,7 @@ impl TestApp {
     }
 
     pub async fn get_login(&self) -> reqwest::Response {
-        reqwest::Client::new()
+        self.client
             .get(format!("{}/login", &self.address))
             .send()
             .await
@@ -54,7 +55,7 @@ impl TestApp {
     where
         Body: serde::Serialize,
     {
-        reqwest::Client::new()
+        self.client
             .post(format!("{}/login", &self.address))
             .form(body)
             .send()
@@ -63,7 +64,7 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-        reqwest::Client::new()
+        self.client
             .post(format!("{}/newsletters", &self.address))
             .json(&body)
             .send()
@@ -94,7 +95,7 @@ impl TestApp {
     }
 
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
-        reqwest::Client::new()
+        self.client
             .post(format!("{}/subscriptions", &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
@@ -119,6 +120,12 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
 
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .expect("Failed to build reqwest::Client in test.");
 
     let email_server = MockServer::start().await;
 
@@ -149,6 +156,7 @@ pub async fn spawn_app() -> TestApp {
         db_pool: get_connection_pool(&configuration.db),
         email_server,
         port,
+        client,
     }
 }
 

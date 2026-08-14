@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(thiserror::Error, Debug)]
 pub enum LoginError {
-    #[error("Authentication Failed. Invalid username or password.")]
+    #[error("Authentication failed. Invalid username or password.")]
     AuthenticationFailed(#[source] anyhow::Error),
 
     #[error("Something went wrong. Please try again.")]
