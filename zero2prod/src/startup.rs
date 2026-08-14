@@ -1,4 +1,7 @@
+use axum_messages::MessagesManagerLayer;
+use secrecy::{ExposeSecret, SecretString};
 use std::{sync::Arc, time::Duration};
+use tower_sessions_cookie_store::{CookieSessionConfig, CookieSessionManagerLayer, Key};
 
 use crate::{
     config::{DBSettings, Settings},
@@ -44,7 +47,12 @@ impl Application {
             timeout,
         );
 
-        let router = build_router(connection_pool, email_client, config.application.base_url);
+        let router = build_router(
+            connection_pool,
+            email_client,
+            config.application.base_url,
+            config.application.secret_key,
+        );
 
         Ok(Self {
             port,
@@ -76,7 +84,12 @@ pub struct AppState {
     pub base_url: Arc<ApplicationBaseUrl>,
 }
 
-fn build_router(db_pool: PgPool, email_client: EmailClient, base_url: String) -> Router {
+fn build_router(
+    db_pool: PgPool,
+    email_client: EmailClient,
+    base_url: String,
+    secret_key: SecretString,
+) -> Router {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(|request: &http::Request<_>| {
             let request_id = Uuid::now_v7();
@@ -119,7 +132,9 @@ fn build_router(db_pool: PgPool, email_client: EmailClient, base_url: String) ->
         email_client: Arc::new(email_client),
         base_url: Arc::new(ApplicationBaseUrl(base_url)),
     };
-
+    let secret_key = Key::from(secret_key.expose_secret().as_bytes());
+    // let config = CookieSessionConfig::default().with_secure(false);
+    let config = CookieSessionConfig::default();
     Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
@@ -129,6 +144,8 @@ fn build_router(db_pool: PgPool, email_client: EmailClient, base_url: String) ->
         .route("/login", get(login_form))
         .route("/login", post(login))
         .route("/newsletters", post(publish_newsletter))
+        .layer(MessagesManagerLayer)
+        .layer(CookieSessionManagerLayer::signed(secret_key).with_config(config))
         .layer(tracing_layer)
         .with_state(state)
 }

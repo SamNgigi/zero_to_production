@@ -28,7 +28,9 @@ sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio
 thiserror = "2.0.18"
 tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "signal"] }
 tower-http = { version = "0.6.8", features = ["trace"] }
+tower-sessions = "0.15.0"
 tower-sessions-cookie-store = "0.5.2"
+tower-sessions-redis-store = { version = "0.16.0", features = ["enable-rustls"] }
 tracing = { version = "0.1.44", features = ["log"] }
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", features = ["registry", "fmt", "env-filter", "json"] }
