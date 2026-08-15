@@ -5,7 +5,6 @@ use tower_sessions::{
     Expiry, SessionManagerLayer,
     cookie::{Key, SameSite},
 };
-use tower_sessions_cookie_store::{CookieSessionConfig, CookieSessionManagerLayer};
 use tower_sessions_redis_store::{
     RedisStore,
     fred::interfaces::ClientLike,
@@ -153,12 +152,12 @@ fn build_router(
         base_url: Arc::new(ApplicationBaseUrl(base_url)),
     };
     let secret_key = Key::from(secret_key.expose_secret().as_bytes());
-    let config = CookieSessionConfig::default();
-    let _session_layer = SessionManagerLayer::new(RedisStore::new(redis_pool))
+    let session_layer = SessionManagerLayer::new(RedisStore::new(redis_pool))
         .with_secure(secure_cookies)
         .with_http_only(true)
         .with_same_site(SameSite::Lax)
-        .with_expiry(Expiry::OnInactivity(time::Duration::hours(1)));
+        .with_expiry(Expiry::OnInactivity(time::Duration::hours(1)))
+        .with_signed(secret_key);
 
     Router::new()
         .route("/health_check", get(health_check))
@@ -170,7 +169,7 @@ fn build_router(
         .route("/login", post(login))
         .route("/newsletters", post(publish_newsletter))
         .layer(MessagesManagerLayer)
-        .layer(CookieSessionManagerLayer::signed(secret_key).with_config(config))
+        .layer(session_layer)
         .layer(tracing_layer)
         .with_state(state)
 }

@@ -3175,25 +3175,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tower-sessions-cookie-store"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8831be41b579a91b2b4084e2a8b5a383ac4e73a93c2a0dbb0c1d232a7e3f7247"
-dependencies = [
- "async-trait",
- "base64",
- "http",
- "serde",
- "serde_json",
- "time",
- "tower-cookies",
- "tower-layer",
- "tower-service",
- "tower-sessions-core",
- "tracing",
-]
-
-[[package]]
 name = "tower-sessions-core"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3905,7 +3886,6 @@ dependencies = [
  "tokio",
  "tower-http",
  "tower-sessions",
- "tower-sessions-cookie-store",
  "tower-sessions-redis-store",
  "tracing",
  "tracing-log",
