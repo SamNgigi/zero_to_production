@@ -1,7 +1,16 @@
 use axum_messages::MessagesManagerLayer;
 use secrecy::{ExposeSecret, SecretString};
 use std::{sync::Arc, time::Duration};
-use tower_sessions_cookie_store::{CookieSessionConfig, CookieSessionManagerLayer, Key};
+use tower_sessions::{
+    Expiry, SessionManagerLayer,
+    cookie::{Key, SameSite},
+};
+use tower_sessions_cookie_store::{CookieSessionConfig, CookieSessionManagerLayer};
+use tower_sessions_redis_store::{
+    RedisStore,
+    fred::interfaces::ClientLike,
+    fred::prelude::{Config, Pool},
+};
 
 use crate::{
     config::{DBSettings, Settings},
@@ -47,11 +56,20 @@ impl Application {
             timeout,
         );
 
+        // Setup `redis_pool`
+        let redis_config = Config::from_url(config.redis_uri.expose_secret())
+            .expect("Failed to configure redis uri.");
+        let redis_pool =
+            Pool::new(redis_config, None, None, None, 6).expect("Failed to create redis pool.");
+        redis_pool.init().await.map_err(std::io::Error::other)?;
+
         let router = build_router(
             connection_pool,
             email_client,
             config.application.base_url,
             config.application.secret_key,
+            redis_pool,
+            config.application.secure_cookies,
         );
 
         Ok(Self {
@@ -89,6 +107,8 @@ fn build_router(
     email_client: EmailClient,
     base_url: String,
     secret_key: SecretString,
+    redis_pool: Pool,
+    secure_cookies: bool,
 ) -> Router {
     let tracing_layer = TraceLayer::new_for_http()
         .make_span_with(|request: &http::Request<_>| {
@@ -134,6 +154,12 @@ fn build_router(
     };
     let secret_key = Key::from(secret_key.expose_secret().as_bytes());
     let config = CookieSessionConfig::default();
+    let _session_layer = SessionManagerLayer::new(RedisStore::new(redis_pool))
+        .with_secure(secure_cookies)
+        .with_http_only(true)
+        .with_same_site(SameSite::Lax)
+        .with_expiry(Expiry::OnInactivity(time::Duration::hours(1)));
+
     Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))

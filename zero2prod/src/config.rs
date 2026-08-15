@@ -75,6 +75,7 @@ pub struct Settings {
     pub db: DBSettings,
     pub application: AppSettings,
     pub email_client: EmailClientSettings,
+    pub redis_uri: SecretString,
 }
 
 #[serde_as]
@@ -102,6 +103,7 @@ pub struct AppSettings {
     pub host: String,
     pub base_url: String,
     pub secret_key: SecretString,
+    pub secure_cookies: bool,
 }
 
 #[serde_as]
