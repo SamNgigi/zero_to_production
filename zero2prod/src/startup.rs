@@ -156,7 +156,7 @@ fn build_router(
         .with_secure(secure_cookies)
         .with_http_only(true)
         .with_same_site(SameSite::Lax)
-        .with_expiry(Expiry::OnInactivity(time::Duration::hours(1)))
+        .with_expiry(Expiry::OnInactivity(time::Duration::minutes(10)))
         .with_signed(secret_key);
 
     Router::new()
