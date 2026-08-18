@@ -1,4 +1,5 @@
 mod common;
+mod dashboard;
 mod health_check;
 mod login;
 mod newsletters;
