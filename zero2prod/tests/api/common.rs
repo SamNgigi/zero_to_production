@@ -40,6 +40,14 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_logout(&self) -> reqwest::Response {
+        self.client
+            .post(format!("{}/admin/logout", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/logout/ request in test.")
+    }
+
     pub async fn get_admin_dashboard_html(&self) -> String {
         self.get_admin_dashboard()
             .await
