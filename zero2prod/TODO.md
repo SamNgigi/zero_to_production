@@ -19,23 +19,24 @@
             - [x]  Flesh out `login_form` handler
                 - [x]  Add `login.html`
                 - [x]  Pull our error flash messages and render them to the html
-    - [ ]  Add `redirects_to_admin_dashboard_on_successful_login` test
-        - [ ] Add `get_admin_dashboard_html` test helper.
-        - [ ] Add `scripts/init_redis.sh` for our session storage
-        - [ ]  Add `tower-sessions` and insert `user_id` in `login` handler on successful `validate_credentials`  
-            - [ ]  Redirect to admin dashboard. Use `see_other` for the redirect
-            - [ ]  Add `src/routes/admin` moodule
-                - [ ]  Flesh out  `admin_dashboard.html` and `admin_dashboard` handler.
-                    - [ ]  Implement `e500` util for opaque error handlling if `user_id` not in session
-                    - [ ]  Implement `get_username` and render returned `username` in `admin_dashboard.html`
-        - [ ]  Add custom `TypedSession`  using `tower-session` and make it an custom axum extractor using `FromRequestParts`
-        - [ ]  Implement `authentication/middleware.rs` using `axum::middleware`
+    - [x]  Add `redirects_to_admin_dashboard_on_successful_login` test
+        - [x] Add `get_admin_dashboard_html` test helper.
+        - [x] Add `scripts/init_redis.sh` for our session storage
+        - [x]  Add `tower-sessions` and insert `user_id` in `login` handler on successful `validate_credentials`  
+            - [x]  Redirect to admin dashboard. Use `see_other` for the redirect
+            - [x]  Add `src/routes/admin` moodule
+                - [x]  Flesh out  `admin_dashboard.html` and `admin_dashboard` handler.
+                    - [x]  Reuse `AppError::Unexpected` util for opaque error handlling if `user_id` not in session
+                    - [x]  Implement `get_username` and render returned `username` in `admin_dashboard.html`
+        - [x]  Add custom `TypedSession`  using `tower-session` and make it an custom axum extractor using `FromRequestParts`
+        - [x]  Implement `authentication/middleware.rs` using `axum::middleware`
     - [ ]  Add`test/admin_dashboard.rs` module  `you_must_be_logged_in_to_access_admin_dashboard` test.
         - [ ]  Add  `get_admin_dashboard` and `get_admin_dashboard_html` test helpers.
         - [ ]  Update `admin_dashboard` handler to redirect to `login` if request is unauthorized/unauthenticated.
     - [ ]  Deploy to production
-        - [ ]  Configure Redis. Refer to [this](https://claude.ai/share/28a3a9aa-b143-4f13-b7c1-28bdc4107457) claude conversation.
-        - [ ]  Make sure to run `sqlx prepare` before deployment.
+        - [x]  Configure Redis. Refer to [this](https://claude.ai/share/28a3a9aa-b143-4f13-b7c1-28bdc4107457) claude conversation.
+        - [x]  Make sure to run `sqlx prepare` before deployment.
+        - [x]  Migrate live database
         - [ ]  Confirm live site working. 
 - [ ] See Users: Add `test/change_password.rs` module
 - [ ] Gate `publish_newsletter` handler behind authentication.
