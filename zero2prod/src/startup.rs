@@ -17,8 +17,8 @@ use crate::{
     config::{DBSettings, Settings},
     email_client::EmailClient,
     routes::{
-        ErrorReport, change_password_form, confirm, dashboard, greet, health_check, login,
-        login_form, logout, publish_newsletter, subscribe,
+        ErrorReport, change_password, change_password_form, confirm, dashboard, greet,
+        health_check, login, login_form, logout, publish_newsletter, subscribe,
     },
 };
 
@@ -165,7 +165,10 @@ fn build_router(
     let admin_routes = Router::new()
         .route("/dashboard", get(dashboard))
         .route("/logout", post(logout))
-        .route("/change_password", get(change_password_form))
+        .route(
+            "/change_password",
+            get(change_password_form).post(change_password),
+        )
         .route_layer(middleware::from_fn(reject_anonymous_user));
 
     Router::new()

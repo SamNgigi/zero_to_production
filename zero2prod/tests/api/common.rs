@@ -45,7 +45,7 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.client
-            .post(format!("{}/change_password", &self.address))
+            .post(format!("{}/admin/change_password", &self.address))
             .form(body)
             .send()
             .await
