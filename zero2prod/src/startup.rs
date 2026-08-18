@@ -1,3 +1,4 @@
+use axum::middleware;
 use axum_messages::MessagesManagerLayer;
 use secrecy::{ExposeSecret, SecretString};
 use std::{sync::Arc, time::Duration};
@@ -12,10 +13,12 @@ use tower_sessions_redis_store::{
 };
 
 use crate::{
+    authentication::reject_anonymous_user,
     config::{DBSettings, Settings},
     email_client::EmailClient,
     routes::{
-        ErrorReport, confirm, greet, health_check, login, login_form, publish_newsletter, subscribe,
+        ErrorReport, confirm, dashboard, greet, health_check, login, login_form,
+        publish_newsletter, subscribe,
     },
 };
 
@@ -159,6 +162,10 @@ fn build_router(
         .with_expiry(Expiry::OnInactivity(time::Duration::minutes(10)))
         .with_signed(secret_key);
 
+    let admin_routes = Router::new()
+        .route("/dashboard", get(dashboard))
+        .route_layer(middleware::from_fn(reject_anonymous_user));
+
     Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
@@ -168,6 +175,7 @@ fn build_router(
         .route("/login", get(login_form))
         .route("/login", post(login))
         .route("/newsletters", post(publish_newsletter))
+        .nest("/admin", admin_routes)
         .layer(MessagesManagerLayer)
         .layer(session_layer)
         .layer(tracing_layer)

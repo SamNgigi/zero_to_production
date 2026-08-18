@@ -1,10 +1,5 @@
 use anyhow::Context;
-use axum::{
-    Form,
-    extract::State,
-    http::StatusCode,
-    response::{IntoResponse, Redirect, Response},
-};
+use axum::{Form, extract::State, response::Redirect};
 use axum_messages::Messages;
 use secrecy::SecretString;
 
@@ -27,7 +22,7 @@ pub enum LoginError {
 impl From<AuthError> for LoginError {
     fn from(e: AuthError) -> Self {
         match e {
-            AuthError::UnkownUsername(_) | AuthError::InvalidPassword(_) => {
+            AuthError::UnknownUsername | AuthError::InvalidPassword(_) => {
                 LoginError::AuthenticationFailed(e.into())
             }
             AuthError::Unexpected(_) => LoginError::Unexpected(e.into()),

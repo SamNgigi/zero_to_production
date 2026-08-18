@@ -9,7 +9,7 @@ use crate::telemetry::spawn_blocking_with_tracing;
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {
     #[error("Invalid Credentials: No user matching supplied username")]
-    UnkownUsername(#[source] anyhow::Error),
+    UnknownUsername,
 
     #[error("Invalid Credentials: Invalid password")]
     InvalidPassword(#[source] anyhow::Error),
@@ -27,14 +27,14 @@ pub async fn validate_credentials(
     db_pool: &PgPool,
     credentials: Credentials,
 ) -> Result<Uuid, AuthError> {
-    let mut _user_id = None;
+    let mut user_id = None;
     let mut expected_password = SecretString::from(
         "$argon2id$v=19$m=19000,t=2,p=1$OqVpaPog6F9sxlWW5VoHkA$4uDo1cl2daKq1ZgmmvtQBfG3wwmI8Nk4i8gHk6pwrYA".to_string()
     );
     if let Some((stored_user_id, stored_password_hash)) =
         get_stored_credentials(db_pool, &credentials.username).await?
     {
-        _user_id = Some(stored_user_id);
+        user_id = Some(stored_user_id);
         expected_password = stored_password_hash;
     };
 
@@ -42,10 +42,12 @@ pub async fn validate_credentials(
         verify_password_hash(expected_password, credentials.password)
     })
     .await
-    .context("Failed to spawn blocking task thread")
-    .map_err(AuthError::Unexpected)??;
+    // NOTE: Droppint the `.map_err(AuthError::Unexpected)`
+    // `#[from] anyhow::Error` already gives us `From<anyhow:::Error> for Auth`
+    // so the first `?` does that conversion for free.
+    .context("Failed to spawn blocking task thread")??;
 
-    todo!()
+    user_id.ok_or(AuthError::UnknownUsername)
 }
 
 #[tracing::instrument(name = "Get Stored Credentials", skip(db_pool, username))]
