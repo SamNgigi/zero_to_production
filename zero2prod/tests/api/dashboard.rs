@@ -24,7 +24,7 @@ async fn logout_clears_session_state() {
     assert_on_redirect(&response, "/login");
     // Follow redirect and check logout has appropriate flash message.
     let login_html = app.get_login_html().await;
-    assert!(login_html.contains(r#"<p><i>You've been successfully logged out.</i><p>"#))
+    assert!(login_html.contains(r#"<p><i>You've been successfully logged out.</i></p>"#))
 }
 
 #[tokio::test]
