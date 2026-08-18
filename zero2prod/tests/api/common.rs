@@ -40,6 +40,18 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.client
+            .post(format!("{}/change_password", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/change_password request in test.")
+    }
+
     pub async fn _get_change_password_html(&self) -> String {
         self.get_change_password()
             .await
@@ -53,7 +65,7 @@ impl TestApp {
             .get(format!("{}/admin/change_password", &self.address))
             .send()
             .await
-            .expect("Failed to execute GET /admin/change_password in test.")
+            .expect("Failed to execute GET /admin/change_password request in test.")
     }
 
     pub async fn post_logout(&self) -> reqwest::Response {
