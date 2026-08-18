@@ -40,6 +40,22 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn _get_change_password_html(&self) -> String {
+        self.get_change_password()
+            .await
+            .text()
+            .await
+            .expect("Failed to decode HTML to String text in test.")
+    }
+
+    pub async fn get_change_password(&self) -> reqwest::Response {
+        self.client
+            .get(format!("{}/admin/change_password", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute GET /admin/change_password in test.")
+    }
+
     pub async fn post_logout(&self) -> reqwest::Response {
         self.client
             .post(format!("{}/admin/logout", &self.address))

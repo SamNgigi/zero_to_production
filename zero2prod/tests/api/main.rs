@@ -1,3 +1,4 @@
+mod change_password;
 mod common;
 mod dashboard;
 mod health_check;
