@@ -1,4 +1,4 @@
-use crate::common::{ConfirmationLinks, TestApp, spawn_app};
+use crate::common::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
 use wiremock::{
     Mock, ResponseTemplate,
     matchers::{any, method, path},
@@ -126,4 +126,16 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         .unwrap();
 
     app.get_confirmation_links(received_request)
+}
+
+#[tokio::test]
+async fn you_must_be_logged_in_to_access_publish_newsletter() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act
+    let response = app.get_publish_newsletter().await;
+
+    // NOTE: Assert
+    assert_on_redirect(&response, "/login");
 }
