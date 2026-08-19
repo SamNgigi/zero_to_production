@@ -4,6 +4,36 @@ use uuid::Uuid;
 use crate::common::{assert_on_redirect, spawn_app};
 
 #[tokio::test]
+async fn error_flash_message_is_set_when_new_password_too_short() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password.expose_secret(),
+    });
+    let new_password = "tooshort";
+    let change_password_request = serde_json::json!({
+        "current_password": Uuid::new_v4(),
+        "new_password": &new_password,
+        "confirm_password": &new_password,
+    });
+
+    // NOTE: Act & Assert - Successful Login
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    // Following redirect and checking username on admin dashboard
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}.", app.test_user.username)));
+
+    // NOTE: Act & Assert 2 - Flash message when new password too short
+    let response = app.post_change_password(&change_password_request).await;
+    assert_on_redirect(&response, "/admin/change_password");
+    // Following redirect and checking error message is rendered.
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains(r#"<p><i>The New password is too short.</i></p>"#));
+}
+
+#[tokio::test]
 async fn error_flash_messages_is_set_on_incorrect_current_password() {
     // NOTE: Arrange
     let app = spawn_app().await;
