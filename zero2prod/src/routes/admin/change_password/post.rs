@@ -3,7 +3,7 @@ use axum_messages::Messages;
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::{
-    authentication::{AuthError, Credentials, UserID, validate_credentials},
+    authentication::{AuthError, Credentials, UserID, update_password, validate_credentials},
     routes::{AppError, get_username},
     startup::AppState,
 };
@@ -22,6 +22,7 @@ pub async fn change_password(
     messages: Messages,
     Form(form): Form<FormData>,
 ) -> Result<Redirect, AppError> {
+    // NOTE: Check new password is not too short
     let new_password_len = form.new_password.expose_secret().len();
 
     if !(12..129).contains(&new_password_len) {
@@ -29,6 +30,13 @@ pub async fn change_password(
         return Ok(Redirect::to("/admin/change_password"));
     };
 
+    // NOTE: Check new password and confirm password match
+    if form.new_password.expose_secret() != form.confirm_password.expose_secret() {
+        messages.error("New password and Confirm password fields DO NOT match. Fields must match.");
+        return Ok(Redirect::to("/admin/change_password"));
+    }
+
+    // NOTE: Check current password is valid.
     let username = get_username(&state.db_pool, user_id.into_inner()).await?;
     let credentials = Credentials {
         username,
@@ -46,10 +54,8 @@ pub async fn change_password(
         }
     };
 
-    if form.new_password.expose_secret() != form.confirm_password.expose_secret() {
-        messages.error("New password and Confirm password fields DO NOT match. Fields must match.");
-        return Ok(Redirect::to("/admin/change_password"));
-    }
-
-    todo!()
+    // NOTE: Change password
+    update_password(&state.db_pool, user_id.into_inner(), form.new_password).await?;
+    messages.info("You've successfully changed your password.");
+    Ok(Redirect::to("/admin/change_password"))
 }

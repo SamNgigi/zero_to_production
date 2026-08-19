@@ -19,7 +19,7 @@ async fn logout_clears_session_state() {
     let dashboard_html = app.get_admin_dashboard_html().await;
     assert!(dashboard_html.contains(&format!("Welcome {}.", app.test_user.username)));
 
-    // NOTE: Act & Assert: Successful logout.
+    // NOTE: Act & Assert 1: Successful logout.
     let response = app.post_logout().await;
     assert_on_redirect(&response, "/login");
     // Follow redirect and check logout has appropriate flash message.
