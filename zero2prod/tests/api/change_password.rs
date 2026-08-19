@@ -4,6 +4,58 @@ use uuid::Uuid;
 use crate::common::{assert_on_redirect, spawn_app};
 
 #[tokio::test]
+async fn change_password_works() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password.expose_secret(),
+    });
+    let new_password = Uuid::new_v4().to_string();
+    let change_password_request = serde_json::json!({
+        "current_password": app.test_user.password.expose_secret(),
+        "new_password": &new_password,
+        "confirm_password": &new_password,
+    });
+
+    // NOTE: Act & Assert 1 - Successful Login
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    // Following redirect and checking username on admin dashboard
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}.", app.test_user.username)));
+
+    // NOTE: Act & Assert 2 - Password changed successfully
+    let response = app.post_change_password(&change_password_request).await;
+    assert_on_redirect(&response, "/admin/change_password");
+    // Following redirect and checking error message is rendered.
+    let change_password_html = app.get_change_password_html().await;
+    assert!(
+        change_password_html
+            .contains(r#"<p><i>You've successfully changed your password.</i></p>"#)
+    );
+
+    // NOTE: Act & Assert 3 - Logout
+    let response = app.post_logout().await;
+    assert_on_redirect(&response, "/login");
+    // Follow redirect and check logout has appropriate flash message.
+    let login_html = app.get_login_html().await;
+    assert!(login_html.contains(r#"<p><i>You've been successfully logged out.</i></p>"#));
+
+    // NOTE: Act & Assert 4 - Login again
+    let response = app
+        .post_login(&serde_json::json!({
+            "username": app.test_user.username,
+            "password": new_password
+        }))
+        .await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    // Following redirect and checking username on admin dashboard
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}.", app.test_user.username)));
+}
+
+#[tokio::test]
 async fn error_flash_message_is_set_when_new_password_too_short() {
     // NOTE: Arrange
     let app = spawn_app().await;
@@ -13,7 +65,7 @@ async fn error_flash_message_is_set_when_new_password_too_short() {
     });
     let new_password = "tooshort";
     let change_password_request = serde_json::json!({
-        "current_password": Uuid::new_v4(),
+        "current_password": app.test_user.password.expose_secret(),
         "new_password": &new_password,
         "confirm_password": &new_password,
     });
@@ -73,7 +125,7 @@ async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
         "password": app.test_user.password.expose_secret(),
     });
     let change_password_request = serde_json::json!({
-        "current_password": app.test_user.username,
+        "current_password": app.test_user.password.expose_secret(),
         "new_password": Uuid::new_v4().to_string(),
         "confirm_password": Uuid::new_v4().to_string(),
     });
