@@ -52,7 +52,7 @@ impl TestApp {
             .expect("Failed to execute POST /admin/change_password request in test.")
     }
 
-    pub async fn _get_change_password_html(&self) -> String {
+    pub async fn get_change_password_html(&self) -> String {
         self.get_change_password()
             .await
             .text()
