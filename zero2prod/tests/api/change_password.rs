@@ -3,6 +3,36 @@ use uuid::Uuid;
 
 use crate::common::{assert_on_redirect, spawn_app};
 
+#[tokio::test]
+async fn error_flash_messages_is_set_on_incorrect_current_password() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password.expose_secret(),
+    });
+    let new_password = Uuid::new_v4().to_string();
+    let change_password_request = serde_json::json!({
+        "current_password": Uuid::new_v4(),
+        "new_password": &new_password,
+        "confirm_password": &new_password,
+    });
+
+    // NOTE: Act & Assert - Successful Login
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    // Following redirect and checking username on admin dashboard
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}.", app.test_user.username)));
+
+    // NOTE: Act & Assert 2 - Flash message for incorrect current password
+    let response = app.post_change_password(&change_password_request).await;
+    assert_on_redirect(&response, "/admin/change_password");
+    // Following redirect and checking error message is rendered.
+    let change_password_html = app.get_change_password_html().await;
+    assert!(change_password_html.contains(r#"<p><i>The Current password is incorrect.</i></p>"#));
+}
+
 /// NOTE: `new_password` and `confirm_password` should match
 #[tokio::test]
 async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
@@ -30,7 +60,6 @@ async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
     assert_on_redirect(&response, "/admin/change_password");
     // Following redirect and checking error message is rendered.
     let change_password_html = app.get_change_password_html().await;
-    // dbg!(&change_password_html);
     assert!(change_password_html.contains(
         r#"<p><i>New password and Confirm password fields DO NOT match. Fields must match.</i></p>"#
     ))
