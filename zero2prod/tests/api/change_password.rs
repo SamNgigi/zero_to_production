@@ -30,8 +30,9 @@ async fn error_flash_message_is_set_on_new_password_fields_mismatch() {
     assert_on_redirect(&response, "/admin/change_password");
     // Following redirect and checking error message is rendered.
     let change_password_html = app.get_change_password_html().await;
+    // dbg!(&change_password_html);
     assert!(change_password_html.contains(
-        r#"<p><i>New password and Confirm Password field DO NOT match. Fields must match.</i></p>"#
+        r#"<p><i>New password and Confirm password fields DO NOT match. Fields must match.</i></p>"#
     ))
 }
 

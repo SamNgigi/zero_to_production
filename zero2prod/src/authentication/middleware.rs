@@ -77,7 +77,6 @@ impl IntoResponse for AuthGuardError {
 
 pub async fn reject_anonymous_user(
     session: TypedSession,
-    messages: Messages,
     mut req: Request,
     next: Next,
 ) -> Result<Response, AuthGuardError> {
@@ -87,7 +86,14 @@ pub async fn reject_anonymous_user(
             Ok(next.run(req).await)
         }
         Ok(None) => {
-            messages.error(AuthGuardError::NotLoggedIn.to_string());
+            // INFO: We clone the handle out of the extensions rather than extracting `Messages`.
+            // `Messages::from_request_parts` calls the crate-private `load()`, which does
+            // `messages = take(pending_messages)` — destructive and not idempotent. The
+            // handler would then call it a second time and wipe the queue. Pushing needs
+            // no load, so we simply never trigger one on this path.
+            if let Some(messages) = req.extensions().get::<Messages>().cloned() {
+                messages.error(AuthGuardError::NotLoggedIn.to_string());
+            };
             Err(AuthGuardError::NotLoggedIn)
         }
         Err(e) => Err(AuthGuardError::Unexpected(

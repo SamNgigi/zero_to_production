@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use crate::routes::AppError;
 
-#[tracing::instrument(name = "Login Form")]
+#[tracing::instrument(name = "Login Form", skip(messages))]
 pub async fn login_form(messages: Messages) -> Result<impl IntoResponse, AppError> {
     let mut msg_html = String::new();
     for msg in messages.into_iter() {
