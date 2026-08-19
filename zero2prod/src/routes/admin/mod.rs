@@ -3,5 +3,5 @@ mod dashboard;
 mod logout;
 
 pub use change_password::*;
-pub use dashboard::dashboard;
+pub use dashboard::{dashboard, get_username};
 pub use logout::logout;
