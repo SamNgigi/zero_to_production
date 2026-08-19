@@ -22,10 +22,12 @@ pub async fn change_password(
     messages: Messages,
     Form(form): Form<FormData>,
 ) -> Result<Redirect, AppError> {
-    if form.new_password.expose_secret() != form.confirm_password.expose_secret() {
-        messages.error("New password and Confirm password fields DO NOT match. Fields must match.");
+    let new_password_len = form.new_password.expose_secret().len();
+
+    if !(12..129).contains(&new_password_len) {
+        messages.error("The New password is too short.");
         return Ok(Redirect::to("/admin/change_password"));
-    }
+    };
 
     let username = get_username(&state.db_pool, user_id.into_inner()).await?;
     let credentials = Credentials {
@@ -43,6 +45,11 @@ pub async fn change_password(
             _ => (),
         }
     };
+
+    if form.new_password.expose_secret() != form.confirm_password.expose_secret() {
+        messages.error("New password and Confirm password fields DO NOT match. Fields must match.");
+        return Ok(Redirect::to("/admin/change_password"));
+    }
 
     todo!()
 }
