@@ -43,8 +43,20 @@ async fn newsletters_returns_422_for_invalid_data() {
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // NOTE: Arrange
     let app = spawn_app().await;
-    create_confirmed_subscriber(&app).await;
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password.expose_secret(),
+    });
 
+    // NOTE: Act & Assert 1 - Successful login
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    // Following redirect and checking username on admin dashboard
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}.", app.test_user.username)));
+
+    // NOTE: Act & Assert 2 - Newsletter are delivered
+    create_confirmed_subscriber(&app).await;
     Mock::given(path("/email"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
@@ -55,13 +67,10 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // NOTE: Act
     let newsletter_request_body = serde_json::json!({
         "title": "Newsletter title!",
-        "content": {
-            "plain": "Newsletter issue as plain text",
-            "html": "<p>Newsletter issue as HTML</p>"
-        }
+        "txt_content": "Newsletter issue content"
     });
 
-    let response = app.post_newsletters(newsletter_request_body).await;
+    let response = app.post_publish_newsletter(&newsletter_request_body).await;
 
     // NOTE: Assert
     assert_eq!(response.status().as_u16(), 200);
