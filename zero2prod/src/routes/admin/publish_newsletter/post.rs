@@ -1,6 +1,6 @@
 use anyhow::Context;
 use axum::{
-    Json,
+    Form, Json,
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum PublishError {
-    #[error(transparent)]
+    #[error("Something went wrong. Please try again later.")]
     Unexpected(#[from] anyhow::Error),
 }
 
@@ -45,32 +45,27 @@ impl IntoResponse for PublishError {
 }
 
 #[derive(serde::Deserialize)]
-pub struct BodyData {
+pub struct FormData {
     title: String,
-    content: Content,
+    txt_content: String,
 }
 
-#[derive(serde::Deserialize)]
-pub struct Content {
-    html: String,
-    plain: String,
-}
-
-#[tracing::instrument(name = "Publish newsletter issue", skip(state, body))]
+#[tracing::instrument(name = "Publish newsletter issue", skip(state, form))]
 pub async fn publish_newsletter(
     State(state): State<AppState>,
-    body: Json<BodyData>,
+    form: Form<FormData>,
 ) -> Result<impl IntoResponse, PublishError> {
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
+    let html_content = get_html(&form.txt_content);
     for sub in subscribers {
         match sub {
             Ok(subscriber) => state
                 .email_client
                 .send_email(
                     &subscriber.email,
-                    &body.title,
-                    &body.content.html,
-                    &body.content.plain,
+                    &form.title,
+                    &html_content,
+                    &form.txt_content,
                 )
                 .await
                 .with_context(|| {
@@ -87,6 +82,13 @@ pub async fn publish_newsletter(
         }
     }
     Ok(StatusCode::OK)
+}
+
+fn get_html(text: &str) -> String {
+    let parser = pulldown_cmark::Parser::new(text);
+    let mut html_output = String::new();
+    pulldown_cmark::html::push_html(&mut html_output, parser);
+    ammonia::clean(&html_output)
 }
 
 struct ConfirmedSubscriber {

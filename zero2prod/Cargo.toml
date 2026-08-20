@@ -11,12 +11,14 @@ path = "src/main.rs"
 name = "zero2prod"
 
 [dependencies]
+ammonia = "4.1.4"
 anyhow = "1.0.102"
 argon2 = { version = "0.5.3", features = ["std"] }
 axum = "0.8.8"
 axum-messages = "0.8.0"
 chrono = { version = "0.4.44", default-features = false, features = ["clock"] }
 config = { version = "0.15.22", default-features = false, features = ["yaml"] }
+pulldown-cmark = "0.13.4"
 rand = "0.10.1"
 reqwest = { version = "0.13.2", features = ["cookies", "form", "json", "rustls"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
