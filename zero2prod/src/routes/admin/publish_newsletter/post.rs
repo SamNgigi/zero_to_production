@@ -63,6 +63,10 @@ pub async fn publish_newsletter(
         messages.error("Missing title for newsletter issue. Issue must have a title.");
         return Ok(Redirect::to("/admin/publish_newsletter"));
     };
+    if form.txt_content.is_empty() {
+        messages.error("Missing content for newsletter issue. Issue must have content.");
+        return Ok(Redirect::to("/admin/publish_newsletter"));
+    };
     for sub in subscribers {
         match sub {
             Ok(subscriber) => state
