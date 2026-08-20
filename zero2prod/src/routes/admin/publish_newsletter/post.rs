@@ -3,8 +3,9 @@ use axum::{
     Form, Json,
     extract::State,
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
 };
+use axum_messages::Messages;
 use sqlx::PgPool;
 
 use crate::{
@@ -53,10 +54,15 @@ pub struct FormData {
 #[tracing::instrument(name = "Publish newsletter issue", skip(state, form))]
 pub async fn publish_newsletter(
     State(state): State<AppState>,
+    messages: Messages,
     form: Form<FormData>,
 ) -> Result<impl IntoResponse, PublishError> {
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
     let html_content = get_html(&form.txt_content);
+    if form.title.is_empty() {
+        messages.error("Missing title for newsletter issue. Issue must have a title.");
+        return Ok(Redirect::to("/admin/publish_newsletter"));
+    };
     for sub in subscribers {
         match sub {
             Ok(subscriber) => state
@@ -81,7 +87,9 @@ pub async fn publish_newsletter(
             }
         }
     }
-    Ok(StatusCode::OK)
+
+    messages.info("You've successfully published the newsletter issue.");
+    Ok(Redirect::to("/admin/publish_newsletter"))
 }
 
 fn get_html(text: &str) -> String {
