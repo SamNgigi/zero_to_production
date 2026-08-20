@@ -55,15 +55,15 @@ pub struct FormData {
 pub async fn publish_newsletter(
     State(state): State<AppState>,
     messages: Messages,
-    form: Form<FormData>,
+    Form(form): Form<FormData>,
 ) -> Result<impl IntoResponse, PublishError> {
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
     let html_content = get_html(&form.txt_content);
-    if form.title.is_empty() {
+    if form.title.trim().is_empty() {
         messages.error("Missing title for newsletter issue. Issue must have a title.");
         return Ok(Redirect::to("/admin/publish_newsletter"));
     };
-    if form.txt_content.is_empty() {
+    if form.txt_content.trim().is_empty() {
         messages.error("Missing content for newsletter issue. Issue must have content.");
         return Ok(Redirect::to("/admin/publish_newsletter"));
     };
