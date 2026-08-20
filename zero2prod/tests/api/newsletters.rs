@@ -129,6 +129,23 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
 }
 
 #[tokio::test]
+async fn you_must_be_logged_in_to_post_to_publish_newsletter() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+
+    // NOTE: Act
+    let response = app
+        .post_publish_newsletter(&serde_json::json!({
+            "title": "Newsletter title",
+            "txt_content": "Newsletter issue content."
+        }))
+        .await;
+
+    // NOTE: Assert
+    assert_on_redirect(&response, "/login");
+}
+
+#[tokio::test]
 async fn you_must_be_logged_in_to_access_publish_newsletter() {
     // NOTE: Arrange
     let app = spawn_app().await;

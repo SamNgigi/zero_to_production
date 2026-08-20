@@ -40,6 +40,18 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.client
+            .post(format!("{}/admin/publish_newsletter", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute POST /admin/publish_newsletter request in test.")
+    }
+
     pub async fn get_publish_newsletter(&self) -> reqwest::Response {
         self.client
             .get(format!("{}/admin/publish_newsletter", &self.address))
