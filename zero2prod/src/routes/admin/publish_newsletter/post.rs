@@ -92,7 +92,7 @@ pub async fn publish_newsletter(
         }
     }
 
-    messages.info("You've successfully published the newsletter issue.");
+    messages.info("Newsletter Issue Published Successfully.");
     Ok(Redirect::to("/admin/publish_newsletter"))
 }
 
