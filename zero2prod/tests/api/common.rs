@@ -52,6 +52,14 @@ impl TestApp {
             .expect("Failed to execute POST /admin/publish_newsletter request in test.")
     }
 
+    pub async fn get_publish_newsletter_html(&self) -> String {
+        self.get_publish_newsletter()
+            .await
+            .text()
+            .await
+            .expect("Failed to decode HTML to valid String text in test.")
+    }
+
     pub async fn get_publish_newsletter(&self) -> reqwest::Response {
         self.client
             .get(format!("{}/admin/publish_newsletter", &self.address))

@@ -40,6 +40,40 @@ async fn newsletters_returns_422_for_invalid_data() {
 }
 
 #[tokio::test]
+async fn error_flash_message_is_set_on_missing_newsletter_issue_title() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    let login_request = serde_json::json!({
+        "username": app.test_user.username,
+        "password": app.test_user.password.expose_secret(),
+    });
+
+    // NOTE: Act & Assert 1 - Successful login
+    let response = app.post_login(&login_request).await;
+    assert_on_redirect(&response, "/admin/dashboard");
+    // Following redirect and checking username on admin dashboard
+    let admin_dashboard_html = app.get_admin_dashboard_html().await;
+    assert!(admin_dashboard_html.contains(&format!("Welcome {}.", app.test_user.username)));
+
+    // NOTE: Act & Assert 1 - Missing title flash error
+    let publish_newsletter_request = serde_json::json!({
+        "title": "",
+        "txt_content": "Newsletter issue content.",
+    });
+    let response = app
+        .post_publish_newsletter(&publish_newsletter_request)
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+    // Following redirect and check flash error message is rendered.
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(
+        publish_newsletter_html.contains(
+            r#"<p><i>Missing title for newsletter issue. Issue must have a title.</i></p>"#
+        )
+    )
+}
+
+#[tokio::test]
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // NOTE: Arrange
     let app = spawn_app().await;
