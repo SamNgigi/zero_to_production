@@ -18,7 +18,8 @@ use crate::{
     email_client::EmailClient,
     routes::{
         ErrorReport, change_password, change_password_form, confirm, dashboard, greet,
-        health_check, login, login_form, logout, publish_newsletter, subscribe,
+        health_check, login, login_form, logout, publish_newsletter, publish_newsletter_form,
+        subscribe,
     },
 };
 
@@ -169,6 +170,10 @@ fn build_router(
             "/change_password",
             get(change_password_form).post(change_password),
         )
+        .route(
+            "/publish_newsletter",
+            get(publish_newsletter_form).post(publish_newsletter),
+        )
         .route_layer(middleware::from_fn(reject_anonymous_user));
 
     Router::new()
@@ -178,7 +183,6 @@ fn build_router(
         .route("/{name}", get(greet))
         .route("/subscriptions/confirm", get(confirm))
         .route("/login", get(login_form).post(login))
-        .route("/newsletters", post(publish_newsletter))
         .nest("/admin", admin_routes)
         .layer(MessagesManagerLayer)
         .layer(session_layer)
