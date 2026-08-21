@@ -1,0 +1,3 @@
+disallowed-types = [
+  {path = "axum_messages::Messages", reason="use flash::FlashReader / FlashWriter; direct extraction double-loads the queue"},
+]

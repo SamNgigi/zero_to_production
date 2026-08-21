@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_types)]
+
 use axum::response::{IntoResponse, Redirect, Response};
 use axum_messages::Messages;
 
@@ -5,6 +7,7 @@ use axum_messages::Messages;
 pub enum Severity {
     Error,
     Warn,
+    Info,
 }
 
 pub trait FlashError: std::error::Error + Send + Sync + 'static {
@@ -23,6 +26,7 @@ pub trait FlashError: std::error::Error + Send + Sync + 'static {
             Severity::Error => tracing::error!(
                 error = %self, error.cause_chain = ?self, "Request failed"
             ),
+            _ => (),
         }
     }
 }
