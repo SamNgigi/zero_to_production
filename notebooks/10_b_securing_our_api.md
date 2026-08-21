@@ -90,11 +90,9 @@ We then stub the up appropriately then wire them up to `src/routes/mod.rs` and `
 
 Let start by adding initial contents of `login.html`, `get.rs`, `post.rs`and `mod.rs`.
 
-
-```Rust
+```HTML
 <!--src/routes/login/login.html-->
-
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta http-equiv="content-type" content-type="text/html" charset="UTF-8">
@@ -188,8 +186,7 @@ encodes our input data in clear text as query parameters. Because query paramete
 
 To change this behavior we add `method` and `action` attribute to the `form` element as follows
 
-
-```Rust
+```HTML
 <!--src/routes/login/login.html-->
 <!--[...]-->
     <form method="POST" action="/login">
@@ -4404,3 +4401,179 @@ run all the tests.
 > `newsletters_are_not_delivered_to_unconfirmed_subscribers` and `newsletters_are_delivered_to_confirmed_subscribers` tests might fail. Remember to adapt them
 > to take in form data instead of the original nested json and assert a redirect $303$ status code instead of $200$ status code.
 
+
+## 10.x. Axum implementation
+
+### 10.x.0. Overview
+
+Our axum implementation is going to be more succinct because we are implementing our final iteration, without going through the many learning  
+that we've already covered quite in depth.
+
+So what sections do we need to implementen?  
+We will start from the Login implementation and basically ignore everything before it around Password-based Authentication.  
+We can come back to it for the sake of learning after we've finished the book, but we don't gain much from re-implementing  
+those earlier section in `axum`.
+
+Maybe the only exception are 
+- Password-based authentication
+    - Password Verification
+    - Password Storage
+    - Not blocking the Async executor
+    - User enumeration
+
+But re-ordered to start from the Login workflows. So what will our implementation order look like? Here's what i'm thinking
+1. Login: Add `tests/login.rs` module.
+    1. Add `an_error_flash_message_is_set_on_failure` test. (This will require us to set up sesions)
+        1. Add `post_login` test helper & `get_login_html` test helper.
+        2. Create `users` table with `user_id`, `username` and `password_hash` columns.
+        3. Add login module
+            1. Implement initial `login_form` and `login` handler sketelons
+            2. Flesh out `login` handler
+                1. Add authentication module
+                    1. Implement `validate_credentials`
+                        1. Implement `AuthError`
+                    3. Implement `get_stored_credentials` 
+                    4. Implement `verify_password_hash` 
+                3. Add `actix_messages` & `tower_sessions-cookie_store` for cookie based [flash messages](https://share.google/aimode/rwyMYTQGTFondimLP).
+                4. Add `utils.rs` module with a `see_other` util function.
+                5. Add `redirect_to_login` helper
+            3. Flesh out `login_form` handler
+                1. Add `login.html`
+                2. Pull our error flash messages and render them to the html
+    2. Add `redirects_to_admin_dashboard_on_successful_login` test
+        1. Add `get_admin_dashboard_html` test helper.
+        2. Add `tower-sessions` and insert `user_id` in `login` handler on successful `validate_credentials`  
+            1. Redirect to admin dashboard. Use `see_other` for the redirect
+            2. Add `src/routes/admin` moodule
+                1. Flesh out  `admin_dashboard.html` and `admin_dashboard` handler.
+                    1. Implement `e500` util for opaque error handlling if `user_id` not in session
+                    2. Implement `get_username` and render returned `username` in `admin_dashboard.html`
+        3. Add custom `TypedSession`  using `tower-session` and make it an custom axum extractor using `FromRequestParts`
+        4. Implement `authentication/middleware.rs` using `axum::middleware`
+    3. Add `you_must_be_logged_in_to_access_admin_dashboard` test.
+        1. Add  `get_admin_dashboard` and `get_admin_dashboard_html` test helpers.
+        2. Update `admin_dashboard` handler to redirect to `login` if request is unauthorized/unauthenticated.
+    4. Deploy to production
+        1. Configure Redis. Refer to [this](https://claude.ai/share/28a3a9aa-b143-4f13-b7c1-28bdc4107457) claude conversation.
+        2. Make sure to run `sqlx prepare` before deployment.
+        3. Confirm live site working. 
+
+From here, we'll go into 
+- The Seed Users section with the password reset functionality and
+- Gating `publish_newsletter` behind authentication
+    - Updating the tests for session-based authentication.
+    - Moving the implementation into a `routes/admin/newsletter.rs` module.
+    - Adding the `newsletter.html` + `publish_newsletter_form` handler + updating the `publish_newsletter` handler.
+
+We won't have to do the middleware because we are going to address that when working on the login functionality
+
+For custom axum middleware 
+
+```Rust
+use axum::{
+    Extension,
+    http::{Request, StatusCode},
+    middleware::{self, Next},
+    response::Response,
+    routing::get,
+    Router,
+};
+
+#[derive(Clone, Debug)]
+struct CurrentUser {
+    id: u64,
+}
+
+async fn inject_user_middleware(
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let user = CurrentUser { id: 42 };
+    
+    // Attach custom data to the request lifecycle
+    request.extensions_mut().insert(user);
+    
+    Ok(next.run(request).await)
+}
+
+// Handler reads the data using the Extension extractor
+async fn profile_handler(Extension(user): Extension<CurrentUser>) -> String {
+    format!("Welcome back user: {}", user.id)
+}
+
+```
+
+And grouping multiple authenticated routes
+
+```Rust
+use axum::{middleware, routing::get, Router};
+
+async fn dashboard() -> &'static str {
+    "Welcome to the secret dashboard!"
+}
+
+async fn settings() -> &'static str {
+    "User settings page"
+}
+
+async fn public_route() -> &'static str {
+    "Anyone can see this."
+}
+
+#[tokio::main]
+async fn main() {
+    // Group multiple routes that need protection
+    let protected_routes = Router::new()
+        .route("/dashboard", get(dashboard))
+        .route("/settings", get(settings))
+        .route_layer(middleware::from_fn(auth_middleware));
+
+    // Combine with public routes
+    let app = Router::new()
+        .route("/", get(public_route))
+        .merge(protected_routes);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+
+```
+
+### 10.x.1 Redis Setup
+
+Setting up redis on fly.io in production
+
+![image.png](10_b_securing_our_api_files/9364f8e9-f3b5-49d1-aee1-1022720528d2.png)
+
+### 10.x.3 Axum specific Deviations
+
+The axum implementation was roughly similar to the actix implementations except for 2-3 keys areas
+1. Flash Messaging
+2. Handling generic opaque internal server error
+3. Serving HTML
+
+Flash Messaging was probably the biggest deviation.  
+While our actix implementation has 2 distinct stores
+- Cookies for flash messages
+- Redis for session storage
+
+In axum we are working with only one store which is redis for both session storage and flash messages via the following
+3 crates.
+- `axum-messages`
+- `tower-sessions`
+- `tower-sessions-redis-store`
+
+ Because we are storing our flash message as part of the session I opted for a `flash.rs` module that shapes our implementation.
+ Specifically calling out the need for `FlashWriter` and `FlashReader` that a wrappers around `axum_messages::Messages` that allows
+ us to work with `Messages` across multiple layers & sessions. 
+
+ There are 2 implementations of our middlware that we experimented with. 
+ - A [minimal version](https://github.com/SamNgigi/zero_to_production/blob/chpt10-axum/securing-api/zero2prod/src/authentication/middleware.rs) that and extracts `Messages` from the request in the middleware and uses a clone to insert error flash messages for auth gated routes 
+ - A [version](https://github.com/SamNgigi/zero_to_production/blob/chpt10-axum/securing-api-flash-explore/zero2prod/src/authentication/middleware.rs) with `FlashWriter/FlashReader` that wraps `axum_messages::Messages`. This allows us to reuse the same flash logic for any future middleware
+   rather than remembering to extract and clone a `Message` paramater in the middleware.
+
+Without either of the above approaches, routes gated by the middleware were not rendering our flash messages do to `Messages::load` that is destructive and **not** idempotent that was being triggered twice.
+- In the middleware
+- In the handlers
+
+This would clear the messages array before they get to the relevant handlers to be rendered.
