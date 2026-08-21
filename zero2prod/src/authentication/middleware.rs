@@ -4,10 +4,13 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Redirect, Response},
 };
-use axum_messages::Messages;
 use uuid::Uuid;
 
-use crate::{routes::AppError, session_state::TypedSession};
+use crate::{
+    flash::{FlashWriter, Severity},
+    routes::AppError,
+    session_state::TypedSession,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct UserID(Uuid);
@@ -77,6 +80,7 @@ impl IntoResponse for AuthGuardError {
 
 pub async fn reject_anonymous_user(
     session: TypedSession,
+    flash_writer: FlashWriter,
     mut req: Request,
     next: Next,
 ) -> Result<Response, AuthGuardError> {
@@ -86,14 +90,9 @@ pub async fn reject_anonymous_user(
             Ok(next.run(req).await)
         }
         Ok(None) => {
-            // INFO: We clone the handle out of the extensions rather than extracting `Messages`.
-            // `Messages::from_request_parts` calls the crate-private `load()`, which does
-            // `messages = take(pending_messages)` — destructive and not idempotent. The
-            // handler would then call it a second time and wipe the queue. Pushing needs
-            // no load, so we simply never trigger one on this path.
-            if let Some(messages) = req.extensions().get::<Messages>().cloned() {
-                messages.error(AuthGuardError::NotLoggedIn.to_string());
-            };
+            // INFO: Using our new type `FlashWriter` instead of `Messages`
+            // Preventing triggering of destructive and non-idompotent `Messages.load`
+            flash_writer.push(Severity::Error, AuthGuardError::NotLoggedIn.to_string());
             Err(AuthGuardError::NotLoggedIn)
         }
         Err(e) => Err(AuthGuardError::Unexpected(
