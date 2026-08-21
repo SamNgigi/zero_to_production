@@ -1,11 +1,10 @@
 use anyhow::Context;
 use axum::{Form, extract::State, response::Redirect};
-use axum_messages::Messages;
 use secrecy::SecretString;
 
 use crate::{
     authentication::{AuthError, Credentials, validate_credentials},
-    flash::{FlashError, FlashRedirect, FlashResultExt, Severity},
+    flash::{FlashError, FlashRedirect, FlashResultExt, FlashWriter, Severity},
     session_state::TypedSession,
     startup::AppState,
 };
@@ -50,12 +49,12 @@ pub struct LoginFormData {
 
 #[tracing::instrument(
     name = " Login Credential Validation",
-    skip(state, messages, session, login_form)
+    skip(state, flash, session, login_form)
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn login(
     State(state): State<AppState>,
-    messages: Messages,
+    flash: FlashWriter,
     session: TypedSession,
     Form(login_form): Form<LoginFormData>,
 ) -> Result<Redirect, FlashRedirect<LoginError>> {
@@ -69,19 +68,19 @@ pub async fn login(
     // -- It hoists the book's original inline `match` out of the handler body
     let user_id = validate_credentials(&state.db_pool, credentials)
         .await
-        .or_flash(&messages)?;
+        .or_flash(&flash)?;
     tracing::Span::current().record("user_id", tracing::field::display(&user_id));
 
     session
         .cycle_id()
         .await
         .context("Failed to rotate the session ID")
-        .or_flash(&messages)?;
+        .or_flash(&flash)?;
     session
         .insert_user_id(user_id)
         .await
         .context("Failed to insert user ID in the session")
-        .or_flash(&messages)?;
+        .or_flash(&flash)?;
 
     Ok(Redirect::to("/admin/dashboard"))
 }

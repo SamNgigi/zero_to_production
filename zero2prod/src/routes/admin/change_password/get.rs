@@ -1,11 +1,10 @@
 use anyhow::Context;
 use axum::response::{Html, IntoResponse};
-use axum_messages::Messages;
 use std::fmt::Write;
 
-use crate::routes::AppError;
+use crate::{flash::FlashReader, routes::AppError};
 
-pub async fn change_password_form(messages: Messages) -> Result<impl IntoResponse, AppError> {
+pub async fn change_password_form(messages: FlashReader) -> Result<impl IntoResponse, AppError> {
     let mut msg_html = String::new();
     for msg in messages.into_iter() {
         writeln!(msg_html, "<p><i>{}</i></p>", msg.message)
