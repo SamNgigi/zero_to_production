@@ -1,4 +1,4 @@
-pull_actix_notes branch_name="chpt10-actix/securing-api":
+pull_actix_notes branch_name="chpt11-actix/fault-tolerant-workflows":
   git checkout {{branch_name}} -- notebooks
 
 tnb markdown:
