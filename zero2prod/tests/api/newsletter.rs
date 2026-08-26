@@ -1,8 +1,50 @@
 use crate::helpers::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
+use uuid::Uuid;
 use wiremock::{
     Mock, ResponseTemplate,
     matchers::{any, method, path},
 };
+
+#[tokio::test]
+async fn newsletter_creation_is_idempotent() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    app.test_user.login(&app).await;
+    create_confirmed_subscriber(&app).await;
+    let post_newsletter_request = serde_json::json!({
+        "title": "Newsletter title",
+        "txt_content": "Newsletter content",
+        "idempotency_key": Uuid::now_v7().to_string(),
+    });
+
+    // NOTE: Arrange
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1) // NOTE: -> asserted on drop.
+        .mount(&app.email_server)
+        .await;
+
+    // NOTE: Assert 1: 1st Newsletter published successfully & flash message rendered
+    let response = app.post_publish_newsletter(&post_newsletter_request).await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
+
+    // NOTE: Assert 2: Retry successful (email not resent)
+    let response = app.post_publish_newsletter(&post_newsletter_request).await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
+
+    // NOTE: Assert 3: Mock asserts on Drop that newsletter email was sent only once
+}
 
 #[tokio::test]
 async fn publish_newsletter_works() {

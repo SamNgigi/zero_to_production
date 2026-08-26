@@ -277,6 +277,14 @@ pub struct TestUser {
 }
 
 impl TestUser {
+    pub async fn login(&self, app: &TestApp) {
+        app.post_login(&serde_json::json!({
+            "username": &self.username,
+            "password": &self.password,
+        }))
+        .await;
+    }
+
     fn generate() -> Self {
         let test_user = Uuid::now_v7();
         Self {
