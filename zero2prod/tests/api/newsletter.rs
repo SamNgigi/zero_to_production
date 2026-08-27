@@ -65,7 +65,8 @@ async fn publish_newsletter_works() {
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",
-            "txt_content": "Newsletter content."
+            "txt_content": "Newsletter content.",
+            "idempotency_key": Uuid::now_v7().to_string(),
         }))
         .await;
     assert_on_redirect(&response, "/admin/publish_newsletter");
@@ -97,7 +98,8 @@ async fn error_flash_message_is_set_on_missing_content_for_newsletter_issue() {
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",
-            "txt_content": ""
+            "txt_content": "",
+            "idempotency_key": Uuid::now_v7(),
         }))
         .await;
     assert_on_redirect(&response, "/admin/publish_newsletter");
@@ -128,7 +130,8 @@ async fn error_flash_message_is_set_on_missing_title_for_newsletter_issue() {
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "",
-            "txt_content": "Newsletter content"
+            "txt_content": "Newsletter content",
+            "idempotency_key": Uuid::now_v7(),
         }))
         .await;
     assert_on_redirect(&response, "/admin/publish_newsletter");
@@ -149,7 +152,8 @@ async fn you_must_be_logged_in_to_post_to_publish_newsletter() {
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",
-            "content": "Newsletter as plain text",
+            "txt_content": "Newsletter content.",
+            "idempotency_key": Uuid::now_v7().to_string(),
         }))
         .await;
 
@@ -198,7 +202,8 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",
-            "txt_content": "Newsletter content."
+            "txt_content": "Newsletter content.",
+            "idempotency_key": Uuid::now_v7().to_string(),
         }))
         .await;
 
@@ -233,7 +238,8 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     let response = app
         .post_publish_newsletter(&serde_json::json!({
             "title": "Newsletter title",
-            "txt_content": "Newsletter content."
+            "txt_content": "Newsletter content.",
+            "idempotency_key": Uuid::now_v7().to_string(),
         }))
         .await;
     assert_eq!(response.status().as_u16(), 303);

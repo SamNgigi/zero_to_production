@@ -1,48 +1,21 @@
-use actix_web::{
-    HttpResponse, ResponseError,
-    http::{
-        StatusCode,
-        header::{self, HeaderValue},
-    },
-    web,
-};
+use actix_web::{HttpResponse, web};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use sqlx::PgPool;
 
 use crate::{
-    authentication::UserId, domain::SubscriberEmail, email_client::EmailClient, utils::see_other,
+    authentication::UserId,
+    domain::SubscriberEmail,
+    email_client::EmailClient,
+    idempotency::IdempotencyKey,
+    utils::{e400, e500, see_other},
 };
-
-#[derive(Debug, thiserror::Error)]
-pub enum PublishError {
-    #[error("Authentication Failed")]
-    Auth(#[source] anyhow::Error),
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
-}
-
-impl ResponseError for PublishError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            PublishError::Unexpected(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
-            PublishError::Auth(_) => {
-                let mut response = HttpResponse::new(StatusCode::UNAUTHORIZED);
-                let header_value = HeaderValue::from_str(r#"Basic realm="publish""#)
-                    .expect("header value was not a valid UTF8 string.");
-                response
-                    .headers_mut()
-                    .insert(header::WWW_AUTHENTICATE, header_value);
-                response
-            }
-        }
-    }
-}
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
     title: String,
     txt_content: String,
+    idempotency_key: String,
 }
 
 #[tracing::instrument(
@@ -57,37 +30,39 @@ pub async fn publish_newsletter(
     email_client: web::Data<EmailClient>,
     form: web::Form<FormData>,
     user_id: web::ReqData<UserId>,
-) -> Result<HttpResponse, PublishError> {
+) -> Result<HttpResponse, actix_web::Error> {
     tracing::Span::current().record("user_id", tracing::field::display(*user_id.into_inner()));
 
-    let subscribers = get_confirmed_subscribers(&db_pool).await?;
+    let subscribers = get_confirmed_subscribers(&db_pool).await.map_err(e500)?;
 
-    if form.0.title.is_empty() {
+    let FormData {
+        title,
+        txt_content,
+        idempotency_key,
+    } = form.0;
+
+    let _idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
+
+    if title.is_empty() {
         FlashMessage::error("Newsletter issue is missing a title. Issue must have a title.").send();
         return Ok(see_other("/admin/publish_newsletter"));
     }
 
-    if form.0.txt_content.is_empty() {
+    if txt_content.is_empty() {
         FlashMessage::error("Newsletter issue is missing content. Issue must have a content.")
             .send();
         return Ok(see_other("/admin/publish_newsletter"));
     }
 
-    let html_content = get_html(&form.0.txt_content);
+    let html_content = get_html(&txt_content);
 
     for sub in subscribers {
         match sub {
             Ok(subscriber) => email_client
-                .send_email(
-                    &subscriber.email,
-                    &form.0.title,
-                    &html_content,
-                    &form.0.txt_content,
-                )
+                .send_email(&subscriber.email, &title, &html_content, &txt_content)
                 .await
-                .with_context(|| {
-                    format!("Failed to send newsletter issue to {}", subscriber.email)
-                })?,
+                .with_context(|| format!("Failed to send newsletter issue to {}", subscriber.email))
+                .map_err(e500)?,
             Err(error) => {
                 tracing::warn!(
                     error.cause_chain = ?error,
