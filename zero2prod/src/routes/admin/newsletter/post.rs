@@ -7,7 +7,7 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    idempotency::IdempotencyKey,
+    idempotency::{IdempotencyKey, get_response},
     utils::{e400, e500, see_other},
 };
 
@@ -31,7 +31,8 @@ pub async fn publish_newsletter(
     form: web::Form<FormData>,
     user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    tracing::Span::current().record("user_id", tracing::field::display(*user_id.into_inner()));
+    let user_id = *user_id.into_inner();
+    tracing::Span::current().record("user_id", tracing::field::display(user_id));
 
     let subscribers = get_confirmed_subscribers(&db_pool).await.map_err(e500)?;
 
@@ -40,8 +41,6 @@ pub async fn publish_newsletter(
         txt_content,
         idempotency_key,
     } = form.0;
-
-    let _idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
 
     if title.is_empty() {
         FlashMessage::error("Newsletter issue is missing a title. Issue must have a title.").send();
@@ -52,6 +51,16 @@ pub async fn publish_newsletter(
         FlashMessage::error("Newsletter issue is missing content. Issue must have a content.")
             .send();
         return Ok(see_other("/admin/publish_newsletter"));
+    }
+
+    let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
+    // NOTE: Early return if we have a saved response in the database.
+    if let Some(response) = get_response(&db_pool, &idempotency_key, user_id)
+        .await
+        .map_err(e500)?
+    {
+        FlashMessage::info("Newsletter Issue Published Successfully.").send();
+        return Ok(response);
     }
 
     let html_content = get_html(&txt_content);
