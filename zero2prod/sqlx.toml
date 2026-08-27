@@ -1,0 +1,3 @@
+[macros.type-overrides]
+'header_pair' = "crate::idempotency::HeaderPairRecord"
+'header_pair[]' = "Vec<crate::idempotency::HeaderPairRecord>"
