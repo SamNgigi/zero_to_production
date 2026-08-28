@@ -7,7 +7,7 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    idempotency::{IdempotencyKey, get_response},
+    idempotency::{IdempotencyKey, get_response, save_response},
     utils::{e400, e500, see_other},
 };
 
@@ -84,7 +84,11 @@ pub async fn publish_newsletter(
     }
 
     FlashMessage::info("Newsletter Issue Published Successfully.").send();
-    Ok(see_other("/admin/publish_newsletter"))
+    let response = see_other("/admin/publish_newsletter");
+    let response = save_response(&db_pool, &idempotency_key, user_id, response)
+        .await
+        .map_err(e500)?;
+    Ok(response)
 }
 
 fn get_html(text: &str) -> String {

@@ -3,26 +3,26 @@
 
 Mostly just coding sections
 
-- [ ] Requirements As Test #1
-  - [ ] Add `newsletter_creation_is_idempotent` test.
-- [ ] Idempotency store
-  - [ ] Add `create_idempotency_table` migration.
-  - [ ] Create `header_pair` type.
-  - [ ] Create `idempotency` table.
-  - [ ] Run migration.
-- [ ] Save And Replay
-  - [ ] Read Idemptency Key
-    - [ ] Add new `idempotency_key` field to `src/routes/admin/newsletter/post.rs`'s `FormData` struct
-    - [ ] Add new `idempotency` module `src/idempotency/{mod,key,persistence}.rs`
-      - [ ] Implement `Idempotency(String)` with `TryFrom<String>` validation, `From` and `AsRef`
-      - [ ] Add opaque `e400` in case of missing `idempotency_key` in form
-      - [ ] Update `publish_newsletter` to Extract `idempotency_key` as well.
-      - [ ] Update relevant tests to use a `Uuid::now_v7` as the `idempotency_key`
-      - [ ] Generate a `Uuid::now_v7()` for the `idempotency_key` and interpolate it into the html form
-  - [ ] Retrieve Saved Responses
-    - [ ] Implement `get_saved_response` in `src/idempotency/persistence.rs` 
-      - [ ] Plug it into `publish_newsletter` handler for early return if the author had already initiated a send earlier.
-  - [ ] Saved Responses
+- [x] Requirements As Test #1
+  - [x] Add `newsletter_creation_is_idempotent` test.
+- [x] Idempotency store
+  - [x] Add `create_idempotency_table` migration.
+  - [x] Create `header_pair` type.
+  - [x] Create `idempotency` table.
+  - [x] Run migration.
+- [x] Save And Replay
+  - [x] Read Idemptency Key
+    - [x] Add new `idempotency_key` field to `src/routes/admin/newsletter/post.rs`'s `FormData` struct
+    - [x] Add new `idempotency` module `src/idempotency/{mod,key,persistence}.rs`
+      - [x] Implement `Idempotency(String)` with `TryFrom<String>` validation, `From` and `AsRef`
+      - [x] Add opaque `e400` in case of missing `idempotency_key` in form
+      - [x] Update `publish_newsletter` to Extract `idempotency_key` as well.
+      - [x] Update relevant tests to use a `Uuid::now_v7` as the `idempotency_key`
+      - [x] Generate a `Uuid::now_v7()` for the `idempotency_key` and interpolate it into the html form
+  - [x] Retrieve Saved Responses
+    - [x] Implement `get_saved_response` in `src/idempotency/persistence.rs` 
+      - [x] Plug it into `publish_newsletter` handler for early return if the author had already initiated a send earlier.
+  - [x] Saved Responses
     - [ ] Implement `save_response` in `src/idempotency`
     - [ ] Plug it into `publish_newsletter` handler
 - [ ] Concurrent Requests
@@ -47,7 +47,7 @@ Mostly just coding sections
       - [ ] Flesh out complete `try_execute_task` implementation.
       - [ ] Implement `worker_loop` and update `try_execute_task` to return `ExecutionOutcome` result.
       - [ ] Implement `run_worker_until_stopped`
-    - Update `main.rs` to run application and background tasks in parallel using `tokio::spawn` and add reporting
+    - [ ] Update `main.rs` to run application and background tasks in parallel using `tokio::spawn` and add reporting
     - [ ] Update test suite
       - [ ] Add `client` method to `EmailClientSettings`
         - [ ] Instantiate the client in both `startup.rs`'s build and `TestApp`
