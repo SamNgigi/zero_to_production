@@ -1,9 +1,43 @@
-use crate::helpers::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
+use std::time::Duration;
 use uuid::Uuid;
 use wiremock::{
     Mock, ResponseTemplate,
     matchers::{any, method, path},
 };
+
+use crate::helpers::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
+
+#[tokio::test]
+async fn concurrent_form_submission_is_handled_gracefully() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    app.test_user.login(&app).await;
+    create_confirmed_subscriber(&app).await;
+
+    // NOTE: Act
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(2)))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let newsletter_request = serde_json::json!({
+        "title": "Newsletter title",
+        "txt_content": "Newsletter content",
+        "idempotency_key": Uuid::now_v7().to_string()
+    });
+    let response1 = app.post_publish_newsletter(&newsletter_request);
+    let response2 = app.post_publish_newsletter(&newsletter_request);
+    let (response1, response2) = tokio::join!(response1, response2);
+
+    // NOTE: Assert
+    assert_eq!(response1.status().as_u16(), response2.status().as_u16());
+    assert_eq!(
+        response1.text().await.unwrap(),
+        response2.text().await.unwrap()
+    );
+}
 
 #[tokio::test]
 async fn newsletter_creation_is_idempotent() {

@@ -7,7 +7,7 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    idempotency::{IdempotencyKey, get_response, save_response},
+    idempotency::{IdempotencyKey, get_saved_response, save_response},
     utils::{e400, e500, see_other},
 };
 
@@ -55,7 +55,7 @@ pub async fn publish_newsletter(
 
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
     // NOTE: Early return if we have a saved response in the database.
-    if let Some(response) = get_response(&db_pool, &idempotency_key, user_id)
+    if let Some(response) = get_saved_response(&db_pool, &idempotency_key, user_id)
         .await
         .map_err(e500)?
     {
