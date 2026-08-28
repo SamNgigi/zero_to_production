@@ -1,8 +1,45 @@
 use actix_web::{HttpResponse, body::to_bytes, http::StatusCode};
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::idempotency::IdempotencyKey;
+
+pub enum NextAction {
+    StartProcessing(Transaction<'static, Postgres>),
+    ReturnSavedResponse(HttpResponse),
+}
+
+pub async fn try_processing(
+    db_pool: &PgPool,
+    idempotency_key: &IdempotencyKey,
+    user_id: Uuid,
+) -> Result<NextAction, anyhow::Error> {
+    let mut transaction = db_pool.begin().await?;
+    let query = sqlx::query!(
+        r#"
+            INSERT INTO idempotency (
+                user_id,
+                idempotency_key,
+                created_at
+            )
+            VALUES ($1, $2, NOW())
+            ON CONFLICT DO NOTHING
+        "#,
+        user_id,
+        idempotency_key.as_ref()
+    );
+    let n_inserted_rows = transaction.execute(query).await?.rows_affected();
+    if n_inserted_rows > 0 {
+        Ok(NextAction::StartProcessing(transaction))
+    } else {
+        let saved_response = get_saved_response(db_pool, idempotency_key, user_id)
+            .await?
+            .ok_or_else(|| {
+                anyhow::anyhow!("Expected to get a saved response, but NONE was found.")
+            })?;
+        Ok(NextAction::ReturnSavedResponse(saved_response))
+    }
+}
 
 #[derive(Debug, sqlx::Type)]
 #[sqlx(type_name = "header_pair")]
@@ -12,7 +49,7 @@ struct HeaderPairRecord {
 }
 
 pub async fn save_response(
-    db_pool: &PgPool,
+    mut transaction: Transaction<'static, Postgres>,
     idempotency_key: &IdempotencyKey,
     user_id: Uuid,
     http_response: HttpResponse,
@@ -34,33 +71,33 @@ pub async fn save_response(
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     // NOTE: Insert response
-    sqlx::query!(
+    let query = sqlx::query!(
         r#"
-            INSERT INTO idempotency (
-                user_id,
-                idempotency_key,
-                response_status_code,
-                response_headers,
-                response_body,
-                created_at
-            )
-            VALUES ($1, $2, $3, $4, $5, now())
+            UPDATE idempotency
+            SET
+                response_status_code = $1,
+                response_headers = $2,
+                response_body = $3
+            WHERE
+                idempotency_key = $4 AND
+                user_id = $5;
+
         "#,
-        user_id,
-        idempotency_key.as_ref(),
         status_code,
-        headers as Vec<HeaderPairRecord>, // NOTE: the sqlx.toml file allows us to do this
+        headers as Vec<HeaderPairRecord>,
         body.as_ref(),
-    )
-    .execute(db_pool)
-    .await?;
+        idempotency_key.as_ref(),
+        user_id,
+    );
+    transaction.execute(query).await?;
+    transaction.commit().await?;
 
     // NOTE: Reassemble response & return
     let response = response_head.set_body(body).map_into_boxed_body();
     Ok(response)
 }
 
-pub async fn get_saved_response(
+async fn get_saved_response(
     db_pool: &PgPool,
     idempotency_key: &IdempotencyKey,
     user_id: Uuid,

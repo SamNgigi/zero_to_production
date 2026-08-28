@@ -7,7 +7,7 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    idempotency::{IdempotencyKey, get_saved_response, save_response},
+    idempotency::{IdempotencyKey, NextAction, save_response, try_processing},
     utils::{e400, e500, see_other},
 };
 
@@ -54,14 +54,16 @@ pub async fn publish_newsletter(
     }
 
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
-    // NOTE: Early return if we have a saved response in the database.
-    if let Some(response) = get_saved_response(&db_pool, &idempotency_key, user_id)
+    let transaction = match try_processing(&db_pool, &idempotency_key, user_id)
         .await
         .map_err(e500)?
     {
-        FlashMessage::info("Newsletter Issue Published Successfully.").send();
-        return Ok(response);
-    }
+        NextAction::StartProcessing(t) => t,
+        NextAction::ReturnSavedResponse(saved_response) => {
+            FlashMessage::info("Newsletter Issue Published Successfully.").send();
+            return Ok(saved_response);
+        }
+    };
 
     let html_content = get_html(&txt_content);
 
@@ -85,7 +87,7 @@ pub async fn publish_newsletter(
 
     FlashMessage::info("Newsletter Issue Published Successfully.").send();
     let response = see_other("/admin/publish_newsletter");
-    let response = save_response(&db_pool, &idempotency_key, user_id, response)
+    let response = save_response(transaction, &idempotency_key, user_id, response)
         .await
         .map_err(e500)?;
     Ok(response)
