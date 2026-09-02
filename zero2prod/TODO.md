@@ -45,11 +45,12 @@ Mostly just coding sections
       - [ ] Implement `delete_task`
       - [ ] Implement `get_issue`
       - [ ] Flesh out complete `try_execute_task` implementation.
-      - [ ] Implement `worker_loop` and update `try_execute_task` to return `ExecutionOutcome` result.
+      - [ ] Implement `worker_loop` and update `try_execute_task` to return `ExecutionOutcome` enum in result.
       - [ ] Implement `run_worker_until_stopped`
     - [ ] Update `main.rs` to run application and background tasks in parallel using `tokio::spawn` and add reporting
+      - [ ] Add `report_exit` helper to `main.rs` for reporting on application or background worker tasks exits due to failure or completion.
     - [ ] Update test suite
-      - [ ] Add `client` method to `EmailClientSettings`
+      - [ ] Add `client` method to `EmailClientSettings` in config
         - [ ] Instantiate the client in both `startup.rs`'s build and `TestApp`
         - [ ] Add `dispatch_all_pending_emails` test helper.
           - [ ] Update all relevant tests to use the above test helper.
