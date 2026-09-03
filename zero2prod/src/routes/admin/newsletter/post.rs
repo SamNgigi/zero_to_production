@@ -55,7 +55,7 @@ pub async fn publish_newsletter(
     {
         NextAction::StartProcessing(t) => t,
         NextAction::ReturnSavedResponse(saved_response) => {
-            FlashMessage::info("Newsletter Issue Published Successfully.").send();
+            success_msg().send();
             return Ok(saved_response);
         }
     };
@@ -69,12 +69,16 @@ pub async fn publish_newsletter(
         .await
         .map_err(e500)?;
 
-    FlashMessage::info("Newsletter Issue Published Successfully.").send();
+    success_msg().send();
     let response = see_other("/admin/publish_newsletter");
     let response = save_response(transaction, &idempotency_key, user_id, response)
         .await
         .map_err(e500)?;
     Ok(response)
+}
+
+fn success_msg() -> FlashMessage {
+    FlashMessage::info("The newsletter issue has bee accepted - emails will go out shortly.")
 }
 
 async fn enqueue_issue_delivery_queue(

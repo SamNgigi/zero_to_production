@@ -25,17 +25,7 @@ impl Application {
     pub async fn build(config: Settings) -> Result<Self, anyhow::Error> {
         let db_pool = get_connection_pool(&config.db);
 
-        let sender_email = config
-            .email_client
-            .sender()
-            .expect("Invalid sender email address");
-        let timeout = config.email_client.timeout();
-        let email_client = EmailClient::new(
-            config.email_client.base_url,
-            sender_email,
-            config.email_client.authorization_token,
-            timeout,
-        );
+        let email_client = config.email_client.client();
 
         let listener = TcpListener::bind(format!("{}:{}", config.app.host, config.app.port))
             .unwrap_or_else(|_| panic!("Failed to bind to port {}", config.app.port));
