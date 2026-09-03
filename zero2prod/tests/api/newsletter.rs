@@ -2,7 +2,6 @@ use fake::{
     Fake,
     faker::internet::en::{SafeEmail, Username},
 };
-
 use std::time::Duration;
 use uuid::Uuid;
 use wiremock::{
@@ -13,17 +12,19 @@ use wiremock::{
 use crate::helpers::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
 
 #[tokio::test]
-#[ignore]
-async fn transient_errors_do_not_cause_duplicated_deliveries_on_retries() {
+async fn transient_errors_do_not_cause_duplicate_deliveries_on_retry() {
     // NOTE: Arrange
     let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+    create_confirmed_subscriber(&app).await;
     app.test_user.login(&app).await;
-    create_confirmed_subscriber(&app).await;
-    create_confirmed_subscriber(&app).await;
+    let publish_newsletter_request = serde_json::json!({
+        "title": "Newsletter title",
+        "txt_content": "Newsletter content.",
+        "idempotency_key": Uuid::now_v7(),
+    });
 
-    // NOTE: Act & Assert 1: Delivery fails due to transient failure
-    //
-    // First request
+    // NOTE: Act & Assert 1 -> First request - successfull delivery
     Mock::given(path("/email"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
@@ -31,7 +32,8 @@ async fn transient_errors_do_not_cause_duplicated_deliveries_on_retries() {
         .expect(1)
         .mount(&app.email_server)
         .await;
-    // Second request that should fail with a 500
+
+    // NOTE: Act & Assert 2 -> Second request - failed delivery due to transient 500,
     Mock::given(path("/email"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(500))
@@ -40,23 +42,23 @@ async fn transient_errors_do_not_cause_duplicated_deliveries_on_retries() {
         .mount(&app.email_server)
         .await;
 
-    let newsletter_request = serde_json::json!({
-        "title": "Newsletter title",
-        "txt_content": "Newsletter content.",
-        "idempotency_key": Uuid::now_v7(),
-    });
-    let response = app.post_publish_newsletter(&newsletter_request).await;
+    let response = app
+        .post_publish_newsletter(&publish_newsletter_request)
+        .await;
     assert_eq!(response.status().as_u16(), 500);
 
-    // NOTE: Act & Assert 1: Duplicate Delivery not sent on retry
+    // NOTE: Act & Assert 3 -> Retry request - Should only retry the failed delivery.
     Mock::given(path("/email"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
-        .named("Deliver Retry")
-        .expect(1) // NOTE: -> Asserted on drop. Only 1 request should reach this mock
+        .expect(1) // NOTE: Expecting one retry request for failed delivery
+        .named("Delivery Retry")
         .mount(&app.email_server)
         .await;
-    let response = app.post_publish_newsletter(&newsletter_request).await;
+
+    let response = app
+        .post_publish_newsletter(&publish_newsletter_request)
+        .await;
     assert_eq!(response.status().as_u16(), 303);
 
     // NOTE: Mock asserted on drop
@@ -92,8 +94,6 @@ async fn concurrent_form_submission_is_handled_gracefully() {
         response1.text().await.unwrap(),
         response2.text().await.unwrap()
     );
-
-    app.dispatch_all_pending_emails().await
 }
 
 #[tokio::test]
@@ -120,20 +120,21 @@ async fn newsletter_creation_is_idempotent() {
     let response = app.post_publish_newsletter(&post_newsletter_request).await;
     assert_on_redirect(&response, "/admin/publish_newsletter");
     let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(publish_newsletter_html.contains(
-        r#"<p><i>The newsletter issue has been accepted. Emails will go out shortly.</i></p>"#
-    ));
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
 
     // NOTE: Assert 2: Retry successful (email not resent)
     let response = app.post_publish_newsletter(&post_newsletter_request).await;
     assert_on_redirect(&response, "/admin/publish_newsletter");
     let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(publish_newsletter_html.contains(
-        r#"<p><i>The newsletter issue has been accepted. Emails will go out shortly.</i></p>"#
-    ));
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
 
     // NOTE: Assert 3: Mock asserts on Drop that newsletter email was sent only once
-    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -163,11 +164,10 @@ async fn publish_newsletter_works() {
 
     // NOTE: Act + Assert 3 - Publish newsletter successful flash message is rendered
     let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(publish_newsletter_html.contains(
-        r#"<p><i>The newsletter issue has been accepted. Emails will go out shortly.</i></p>"#
-    ));
-
-    app.dispatch_all_pending_emails().await
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
 }
 
 #[tokio::test]
@@ -300,14 +300,6 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 
     // NOTE: Assert
     assert_eq!(response.status().as_u16(), 303);
-
-    // NOTE: Act + Assert 3 - Publish newsletter successful flash message is rendered
-    let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(publish_newsletter_html.contains(
-        r#"<p><i>The newsletter issue has been accepted. Emails will go out shortly.</i></p>"#
-    ));
-
-    app.dispatch_all_pending_emails().await
 }
 
 #[tokio::test]
@@ -342,14 +334,6 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
         }))
         .await;
     assert_eq!(response.status().as_u16(), 303);
-
-    // NOTE: Act + Assert 3 - Publish newsletter successful flash message is rendered
-    let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(publish_newsletter_html.contains(
-        r#"<p><i>The newsletter issue has been accepted. Emails will go out shortly.</i></p>"#
-    ));
-
-    app.dispatch_all_pending_emails().await
 }
 
 async fn create_confirmed_subscriber(app: &TestApp) {
@@ -362,14 +346,13 @@ async fn create_confirmed_subscriber(app: &TestApp) {
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
-    // let body = "username=lei%yin&email=lei_yin_loo%40gmail.com";
-    let name: String = Username().fake();
+    let username: String = Username().fake();
     let email: String = SafeEmail().fake();
     let body = serde_urlencoded::to_string(serde_json::json!({
-        "username": name,
-        "email": email
+        "username": username,
+        "email": email,
     }))
-    .expect("Failed to generate new subscriber body.");
+    .unwrap();
 
     let _mock_guard = Mock::given(path("/email"))
         .and(method("POST"))
