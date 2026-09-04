@@ -1,42 +1,54 @@
 # TODOS
-### Securing Our API
+### Fault-tolerant Workflows
 
-- [ ]  Login: Add `tests/login.rs` module.
-    - [x]  Add `an_error_flash_message_is_set_on_failure` test. (This will require us to set up sesions)
-        - [x]  Add `post_login` test helper & `get_login_html` test helper.
-        - [x]  Create `users` table with `user_id`, `username` and `password_hash` columns.
-        - [x]  Add login module
-            - [x]  Implement initial `login_form` and `login` handler sketelons
-            - [x]  Flesh out `login` handler
-                - [x]  Add authentication module
-                    - [x]  Implement `validate_credentials`
-                        - [x]  Implement `AuthError`
-                    - [x]  Implement `get_stored_credentials` 
-                    - [x]  Implement `verify_password_hash` 
-                - [x]  Add `actix_messages` & `tower_sessions-cookie_store` for cookie based [flash messages](https://share.google/aimode/rwyMYTQGTFondimLP).
-                - [x]  Add `utils.rs` module with a `see_other` util function. NOT NEEDED.
-                - [ ]  Add `redirect_to_login` helper. NOT NEEDED.
-            - [x]  Flesh out `login_form` handler
-                - [x]  Add `login.html`
-                - [x]  Pull our error flash messages and render them to the html
-    - [x]  Add `redirects_to_admin_dashboard_on_successful_login` test
-        - [x] Add `get_admin_dashboard_html` test helper.
-        - [x] Add `scripts/init_redis.sh` for our session storage
-        - [x]  Add `tower-sessions` and insert `user_id` in `login` handler on successful `validate_credentials`  
-            - [x]  Redirect to admin dashboard. Use `see_other` for the redirect
-            - [x]  Add `src/routes/admin` moodule
-                - [x]  Flesh out  `admin_dashboard.html` and `admin_dashboard` handler.
-                    - [x]  Reuse `AppError::Unexpected` util for opaque error handlling if `user_id` not in session
-                    - [x]  Implement `get_username` and render returned `username` in `admin_dashboard.html`
-        - [x]  Add custom `TypedSession`  using `tower-session` and make it an custom axum extractor using `FromRequestParts`
-        - [x]  Implement `authentication/middleware.rs` using `axum::middleware`
-    - [ ]  Add`test/admin_dashboard.rs` module  `you_must_be_logged_in_to_access_admin_dashboard` test.
-        - [ ]  Add  `get_admin_dashboard` and `get_admin_dashboard_html` test helpers.
-        - [ ]  Update `admin_dashboard` handler to redirect to `login` if request is unauthorized/unauthenticated.
-    - [ ]  Deploy to production
-        - [x]  Configure Redis. Refer to [this](https://claude.ai/share/28a3a9aa-b143-4f13-b7c1-28bdc4107457) claude conversation.
-        - [x]  Make sure to run `sqlx prepare` before deployment.
-        - [x]  Migrate live database
-        - [ ]  Confirm live site working. 
-- [ ] See Users: Add `test/change_password.rs` module
-- [ ] Gate `publish_newsletter` handler behind authentication.
+Mostly just coding sections
+
+- [ ] Requirements As Test #1
+  - [ ] Add `newsletter_creation_is_idempotent` test.
+- [ ] Idempotency store
+  - [ ] Add `create_idempotency_table` migration.
+  - [ ] Create `header_pair` type.
+  - [ ] Create `idempotency` table, with nullable response fields.
+  - [ ] Run migration.
+- [ ] Save And Replay
+  - [ ] Read Idemptency Key
+    - [ ] Add new `idempotency_key` field to `src/routes/admin/newsletter/post.rs`'s `FormData` struct
+    - [ ] Add new `idempotency` module `src/idempotency/{mod,key,persistence}.rs`
+      - [ ] Implement `Idempotency(String)` with `TryFrom<String>` validation, `From` and `AsRef`
+      - [ ] Add opaque `e400` in case of missing `idempotency_key` in form
+      - [ ] Update `publish_newsletter` to Extract `idempotency_key` as well.
+      - [ ] Update relevant tests to use a `Uuid::now_v7` as the `idempotency_key`
+      - [ ] Generate a `Uuid::now_v7()` for the `idempotency_key` and interpolate it into the html form
+  - [ ] Retrieve Saved Responses
+    - [ ] Implement `get_saved_response` in `src/idempotency/persistence.rs` 
+        - [ ] Add `sqlx.toml` to specify how to handle custom SQL `header_pair` type
+        - [ ] Plug it into `publish_newsletter` handler for early return if the author had already initiated a send earlier.
+  - [ ] Saved Responses
+    - [ ] Implement `save_response` in `src/idempotency`
+    - [ ] Plug it into `publish_newsletter` handler
+- [ ] Concurrent Requests
+  - [ ] Add `concurrent_form_submission_is_handled_gracefully()` test
+  - [ ] Synchronize concurrent request
+    - [ ] Implement `try_processing` for idempotency insertion in `src/idempotency/persistence.rs` and plug it into `publish_newsletter` 
+    - [ ] Update `save_response` for idempotency update
+- [ ] Dealing With Errors
+  - [ ] Add `transient_errors_do_not_cause_duplicate_deliveries_on_retries` test spike.
+  - [ ] Split out newsletter publishing from email sending
+    - [ ] Add `create_newsletter_issue_table` migration
+    - [ ] Implement `insert_newsletter_issue` in `src/routes/admin/newsletter/post.rs` and plug it in.
+    - [ ] Add `issue_delivery_queue` migration.
+    - [ ] Implement `enqueue_delivery_task`  in `src/routes/admin/newsletter/post.rs` and plug it in
+    - [ ] Add `src/issue_delivery_worker.rs` module
+      - [ ] Add `try_execute_task`.
+      - [ ] Implement `deque_task`
+      - [ ] Implement `delete_task`
+      - [ ] Implement `get_issue`
+      - [ ] Flesh out complete `try_execute_task` implementation.
+      - [ ] Implement `worker_loop` and update `try_execute_task` to return `ExecutionOutcome` result.
+      - [ ] Implement `run_worker_until_stopped`
+    - [ ] Update `main.rs` to run application and background tasks in parallel using `tokio::spawn` and add reporting
+    - [ ] Update test suite
+      - [ ] Add `client` method to `EmailClientSettings`
+        - [ ] Instantiate the client in both `startup.rs`'s build and `TestApp`
+        - [ ] Add `dispatch_all_pending_emails` test helper.
+          - [ ] Update all relevant tests to use the above test helper.
