@@ -10,6 +10,7 @@ use sqlx::PgPool;
 use crate::{
     domain::SubscriberEmail,
     flash::{FlashWriter, Severity},
+    idempotency::IdempotencyKey,
     routes::errors::{APIErrorBody, ErrorReport},
     startup::AppState,
 };
@@ -49,6 +50,7 @@ impl IntoResponse for PublishError {
 pub struct FormData {
     title: String,
     txt_content: String,
+    idempotency_key: String,
 }
 
 #[tracing::instrument(name = "Publish newsletter issue", skip(state, form))]
@@ -58,15 +60,21 @@ pub async fn publish_newsletter(
     Form(form): Form<FormData>,
 ) -> Result<impl IntoResponse, PublishError> {
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
-    let html_content = get_html(&form.txt_content);
-    if form.title.trim().is_empty() {
+    let FormData {
+        title,
+        txt_content,
+        idempotency_key,
+    } = form;
+    let _idempotency_key: IdempotencyKey = idempotency_key.try_into()?;
+    let html_content = get_html(&txt_content);
+    if title.trim().is_empty() {
         flash_writer.push(
             Severity::Error,
             "Missing title for newsletter issue. Issue must have a title.",
         );
         return Ok(Redirect::to("/admin/publish_newsletter"));
     };
-    if form.txt_content.trim().is_empty() {
+    if txt_content.trim().is_empty() {
         flash_writer.push(
             Severity::Error,
             "Missing content for newsletter issue. Issue must have content.",
@@ -77,12 +85,7 @@ pub async fn publish_newsletter(
         match sub {
             Ok(subscriber) => state
                 .email_client
-                .send_email(
-                    &subscriber.email,
-                    &form.title,
-                    &html_content,
-                    &form.txt_content,
-                )
+                .send_email(&subscriber.email, &title, &html_content, &txt_content)
                 .await
                 .with_context(|| {
                     format!("Failed to send newsletter issue to {}", subscriber.email)
