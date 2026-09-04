@@ -7,6 +7,49 @@ use wiremock::{
 };
 
 #[tokio::test]
+async fn newsletter_creation_is_idempotent() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+    app.test_user.login(&app).await;
+    let publish_newsletter_request = serde_json::json!({
+        "title": "Newsletter title",
+        "txt_content": "Newsletter content."
+    });
+
+    // NOTE: Act
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1) // NOTE: Expecting only one email send request if idempotent. Asserted on drop
+        .mount(&app.email_server)
+        .await;
+
+    // NOTE: Assert 1 - newsletter published successfully.
+    let response = app
+        .post_publish_newsletter(&publish_newsletter_request)
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
+    // NOTE: The retry.
+    let response = app
+        .post_publish_newsletter(&publish_newsletter_request)
+        .await;
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+    let publish_newsletter_html = app.get_publish_newsletter_html().await;
+    assert!(
+        publish_newsletter_html
+            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
+    );
+
+    // NOTE: Mock asserted on drop. We expect only one request to hit the email server, if indempotent
+}
+
+#[tokio::test]
 async fn publish_newsletter_issue_works() {
     // NOTE: Arrange
     let app = spawn_app().await;
