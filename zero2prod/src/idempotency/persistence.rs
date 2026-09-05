@@ -3,10 +3,47 @@ use axum::{
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::Response,
 };
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use super::IdempotencyKey;
+
+pub async fn try_processing_response(
+    db_pool: &PgPool,
+    idempotency_key: &IdempotencyKey,
+    user_id: Uuid,
+) -> Result<NextAction, anyhow::Error> {
+    let mut transaction = db_pool.begin().await?;
+    let query = sqlx::query!(
+        r#"
+            INSERT INTO idempotency (
+                idempotency_key,
+                user_id,
+                created_at
+            )
+            VALUES ($1, $2, NOW())
+            ON CONFLICT DO NOTHING;
+        "#,
+        idempotency_key.as_ref(),
+        user_id,
+    );
+    let n_rows_inserted = transaction.execute(query).await?.rows_affected();
+    if n_rows_inserted > 0 {
+        Ok(NextAction::StartProcessing(transaction))
+    } else {
+        let saved_response = get_saved_response(db_pool, idempotency_key, user_id)
+            .await?
+            .ok_or_else(|| {
+                anyhow::anyhow!("Expected to find a saved response, but NONE was found.")
+            })?;
+        Ok(NextAction::ReturnSavedResponse(saved_response))
+    }
+}
+
+pub enum NextAction {
+    StartProcessing(Transaction<'static, Postgres>),
+    ReturnSavedResponse(Response),
+}
 
 pub async fn save_response(
     db_pool: &PgPool,
