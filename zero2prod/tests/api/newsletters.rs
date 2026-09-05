@@ -1,4 +1,5 @@
 use secrecy::ExposeSecret;
+use std::time::Duration;
 use uuid::Uuid;
 
 use crate::common::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
@@ -6,6 +7,41 @@ use wiremock::{
     Mock, ResponseTemplate,
     matchers::{any, method, path},
 };
+
+#[tokio::test]
+async fn concurrent_form_submission_is_handled_gracefully() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+    app.test_user.login(&app).await;
+    let publish_newsletter_request = serde_json::json!({
+        "title": "Newsletter title",
+        "txt_content": "Newsletter content.",
+        "idempotency_key": Uuid::now_v7().to_string(),
+    });
+
+    // NOTE: Act
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(2)))
+        .expect(1) // NOTE: -> This is asserted on drop
+        .named("Concurrent Delivery Retry")
+        .mount(&app.email_server)
+        .await;
+
+    let response1 = app.post_publish_newsletter(&publish_newsletter_request);
+    let response2 = app.post_publish_newsletter(&publish_newsletter_request);
+    let (response1, response2) = tokio::join!(response1, response2);
+
+    // NOTE: Assert 1 - We get equivalent values from responses.
+    assert_eq!(response1.status().as_u16(), response2.status().as_u16());
+    assert_eq!(
+        response1.text().await.unwrap(),
+        response2.text().await.unwrap()
+    );
+
+    // NOTE: Assert 2 - Mock asserted on drop that we only received on request to the email server.
+}
 
 #[tokio::test]
 async fn newsletter_creation_is_idempotent() {

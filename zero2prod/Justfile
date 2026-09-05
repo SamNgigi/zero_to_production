@@ -10,6 +10,9 @@ todos:
 itest target="*" fn="":
   cargo test --test '{{target}}' -- {{fn}}
 
+itest_log target="*" fn="":
+  TEST_LOG=true cargo test --test '{{target}}' -- {{fn}} | jq -R 'fromjson?'
+
 gdiff:
   git diff -- . ':(exclude)Cargo.lock'
 
