@@ -2,11 +2,18 @@ use sqlx::{PgPool, Postgres, Transaction};
 use std::time::Duration;
 use uuid::Uuid;
 
-use crate::{domain::SubscriberEmail, email_client::EmailClient};
+use crate::{
+    config::Settings, domain::SubscriberEmail, email_client::EmailClient,
+    startup::get_connection_pool,
+};
 
-pub async fn run_worker_until_stopped() {}
+pub async fn run_worker_until_stopped(config: Settings) -> Result<(), anyhow::Error> {
+    let db_pool = get_connection_pool(&config.db);
+    let email_client = config.email_client.client();
+    worker_loop(db_pool, email_client).await
+}
 
-async fn _worker_loop(db_pool: PgPool, email_client: EmailClient) -> Result<(), anyhow::Error> {
+async fn worker_loop(db_pool: PgPool, email_client: EmailClient) -> Result<(), anyhow::Error> {
     loop {
         match try_processing_task(&db_pool, &email_client).await {
             Ok(ExecutionOutcome::EmptyQueue) => {

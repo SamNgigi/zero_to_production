@@ -6,7 +6,7 @@ use sqlx::{
 use secrecy::{ExposeSecret, SecretString};
 use serde_with::{DisplayFromStr, serde_as};
 
-use crate::domain::SubscriberEmail;
+use crate::{domain::SubscriberEmail, email_client::EmailClient};
 
 pub enum Environment {
     Development,
@@ -90,6 +90,15 @@ pub struct EmailClientSettings {
 }
 
 impl EmailClientSettings {
+    pub fn client(self) -> EmailClient {
+        let timeout = self.timeout();
+        EmailClient::new(
+            self.base_url,
+            self.sender_email,
+            self.authorization_token,
+            timeout,
+        )
+    }
     pub fn timeout(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.timeout_milliseconds)
     }

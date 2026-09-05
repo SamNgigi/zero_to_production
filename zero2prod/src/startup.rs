@@ -51,14 +51,7 @@ impl Application {
         // Setup `connection_pool`
         let connection_pool = get_connection_pool(&config.db);
 
-        let timeout = config.email_client.timeout();
-        let email_client = EmailClient::new(
-            config.email_client.base_url,
-            config.email_client.sender_email,
-            config.email_client.authorization_token,
-            timeout,
-        );
-
+        let email_client = config.email_client.client();
         // Setup `redis_pool`
         let redis_config = Config::from_url(config.redis_uri.expose_secret())
             .expect("Failed to configure redis uri.");
