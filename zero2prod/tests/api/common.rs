@@ -10,6 +10,8 @@ use wiremock::MockServer;
 
 use zero2prod::{
     config::{DBSettings, get_config},
+    email_client::EmailClient,
+    issue_delivery_worker::{ExecutionOutcome, try_processing_task},
     startup::{Application, get_connection_pool},
     telemetry,
 };
@@ -30,8 +32,9 @@ pub struct TestApp {
     pub db_pool: PgPool,
     pub email_server: MockServer,
     pub port: u16,
-    pub client: reqwest::Client, // new field
+    pub client: reqwest::Client,
     pub test_user: TestUser,
+    pub email_client: EmailClient,
 }
 
 pub struct ConfirmationLinks {
@@ -40,6 +43,16 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            if let Ok(ExecutionOutcome::EmptyQueue) =
+                try_processing_task(&self.db_pool, &self.email_client).await
+            {
+                break;
+            }
+        }
+    }
+
     pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
@@ -280,6 +293,7 @@ pub async fn spawn_app() -> TestApp {
         port,
         client,
         test_user: TestUser::generate(),
+        email_client: configuration.email_client.client(),
     };
 
     test_app.test_user.store(&test_app.db_pool).await;

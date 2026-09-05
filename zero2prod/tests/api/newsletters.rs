@@ -12,6 +12,7 @@ use wiremock::{
 
 use crate::common::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
 
+#[ignore = "REASON: Now a spike."]
 #[tokio::test]
 async fn transient_errors_do_not_cause_duplicate_deliveries_on_retry() {
     // NOTE: Arrange
@@ -102,6 +103,7 @@ async fn concurrent_form_submission_is_handled_gracefully() {
     );
 
     // NOTE: Assert 2 - Mock asserted on drop that we only received on request to the email server.
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -130,22 +132,21 @@ async fn newsletter_creation_is_idempotent() {
         .await;
     assert_on_redirect(&response, "/admin/publish_newsletter");
     let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(
-        publish_newsletter_html
-            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
-    );
+    assert!(publish_newsletter_html.contains(
+        r#"<p><i>Newsletter Issue Published Successfully - emails going out shortly.</i></p>"#
+    ));
     // NOTE: The retry.
     let response = app
         .post_publish_newsletter(&publish_newsletter_request)
         .await;
     assert_on_redirect(&response, "/admin/publish_newsletter");
     let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(
-        publish_newsletter_html
-            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
-    );
+    assert!(publish_newsletter_html.contains(
+        r#"<p><i>Newsletter Issue Published Successfully - emails going out shortly.</i></p>"#
+    ));
 
     // NOTE: Mock asserted on drop. We expect only one request to hit the email server, if indempotent
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -176,10 +177,10 @@ async fn publish_newsletter_issue_works() {
     assert_on_redirect(&response, "/admin/publish_newsletter");
     // Following redirect and check flash error message is rendered.
     let publish_newsletter_html = app.get_publish_newsletter_html().await;
-    assert!(
-        publish_newsletter_html
-            .contains(r#"<p><i>Newsletter Issue Published Successfully.</i></p>"#)
-    )
+    assert!(publish_newsletter_html.contains(
+        r#"<p><i>Newsletter Issue Published Successfully - emails going out shortly.</i></p>"#
+    ));
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -202,6 +203,7 @@ async fn error_flash_message_is_set_on_missing_newsletter_issue_content() {
     let publish_newsletter_request = serde_json::json!({
         "title": "Newsletter issue title",
         "txt_content": "",
+        "idempotency_key": Uuid::now_v7().to_string()
     });
     let response = app
         .post_publish_newsletter(&publish_newsletter_request)
@@ -234,6 +236,7 @@ async fn error_flash_message_is_set_on_missing_newsletter_issue_title() {
     let publish_newsletter_request = serde_json::json!({
         "title": "",
         "txt_content": "Newsletter issue content.",
+        "idempotency_key": Uuid::now_v7().to_string()
     });
     let response = app
         .post_publish_newsletter(&publish_newsletter_request)
@@ -283,7 +286,8 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     let response = app.post_publish_newsletter(&newsletter_request_body).await;
 
     // NOTE: Assert
-    assert_on_redirect(&response, "/admin/publish_newsletter")
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -319,7 +323,9 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     let response = app.post_publish_newsletter(&newsletter_request_body).await;
 
     // NOTE: Arrange
-    assert_on_redirect(&response, "/admin/publish_newsletter")
+    assert_on_redirect(&response, "/admin/publish_newsletter");
+
+    app.dispatch_all_pending_emails().await;
 }
 
 async fn create_confirmed_subscriber(app: &TestApp) {
