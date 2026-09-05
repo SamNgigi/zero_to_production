@@ -11,7 +11,7 @@ use crate::{
     authentication::UserID,
     domain::SubscriberEmail,
     flash::{FlashWriter, Severity},
-    idempotency::{IdempotencyKey, get_saved_response, save_response},
+    idempotency::{IdempotencyKey, NextAction, save_response, try_processing_response},
     routes::errors::{APIErrorBody, ErrorReport},
     startup::AppState,
 };
@@ -61,6 +61,7 @@ pub async fn publish_newsletter(
     user_id: UserID,
     Form(form): Form<FormData>,
 ) -> Result<Response, PublishError> {
+    let user_id = user_id.into_inner();
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
     let FormData {
         title,
@@ -68,12 +69,16 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = form;
     let idempotency_key: IdempotencyKey = idempotency_key.try_into()?;
-    if let Some(saved_response) =
-        get_saved_response(&state.db_pool, &idempotency_key, user_id.into_inner()).await?
-    {
-        flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
-        return Ok(saved_response);
-    };
+
+    let _transaction =
+        match try_processing_response(&state.db_pool, &idempotency_key, user_id).await? {
+            NextAction::StartProcessing(t) => t,
+            NextAction::ReturnSavedResponse(saved_response) => {
+                flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
+                return Ok(saved_response);
+            }
+        };
+
     let html_content = get_html(&txt_content);
     if title.trim().is_empty() {
         flash_writer.push(
@@ -110,13 +115,7 @@ pub async fn publish_newsletter(
     }
 
     let response = Redirect::to("/admin/publish_newsletter").into_response();
-    let response = save_response(
-        &state.db_pool,
-        &idempotency_key,
-        user_id.into_inner(),
-        response,
-    )
-    .await?;
+    let response = save_response(&state.db_pool, &idempotency_key, user_id, response).await?;
     flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
     Ok(response)
 }
