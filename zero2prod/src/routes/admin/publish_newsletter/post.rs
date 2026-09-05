@@ -70,7 +70,7 @@ pub async fn publish_newsletter(
     } = form;
     let idempotency_key: IdempotencyKey = idempotency_key.try_into()?;
 
-    let _transaction =
+    let transaction =
         match try_processing_response(&state.db_pool, &idempotency_key, user_id).await? {
             NextAction::StartProcessing(t) => t,
             NextAction::ReturnSavedResponse(saved_response) => {
@@ -115,7 +115,7 @@ pub async fn publish_newsletter(
     }
 
     let response = Redirect::to("/admin/publish_newsletter").into_response();
-    let response = save_response(&state.db_pool, &idempotency_key, user_id, response).await?;
+    let response = save_response(transaction, &idempotency_key, user_id, response).await?;
     flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
     Ok(response)
 }

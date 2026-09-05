@@ -46,7 +46,7 @@ pub enum NextAction {
 }
 
 pub async fn save_response(
-    db_pool: &PgPool,
+    mut transaction: Transaction<'static, Postgres>,
     idempotency_key: &IdempotencyKey,
     user_id: Uuid,
     response: Response,
@@ -66,26 +66,25 @@ pub async fn save_response(
     let body = to_bytes(res_body, usize::MAX).await?;
 
     // NOTE: Persisting response component parts to DB
-    sqlx::query!(
+    let query = sqlx::query!(
         r#"
-            INSERT INTO idempotency (
-                idempotency_key,
-                user_id,
-                response_status_code,
-                response_headers,
-                response_body,
-                created_at
-            )
-            VALUES ($1, $2, $3, $4, $5, NOW())
+            UPDATE idempotency
+            SET 
+                response_status_code = $1,
+                response_headers = $2,
+                response_body = $3
+            WHERE 
+                idempotency_key = $4 AND 
+                user_id = $5;
         "#,
-        idempotency_key.as_ref(),
-        user_id,
         status_code,
         headers as Vec<HeaderPairRecord>,
         body.as_ref(),
-    )
-    .execute(db_pool)
-    .await?;
+        idempotency_key.as_ref(),
+        user_id,
+    );
+    transaction.execute(query).await?;
+    transaction.commit().await?;
 
     let response = Response::from_parts(res_head, Body::from(body));
     Ok(response)
