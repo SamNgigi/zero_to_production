@@ -72,7 +72,10 @@ pub async fn publish_newsletter(
         match try_processing_response(&state.db_pool, &idempotency_key, user_id).await? {
             NextAction::StartProcessing(t) => t,
             NextAction::ReturnSavedResponse(saved_response) => {
-                flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
+                flash_writer.push(
+                    Severity::Info,
+                    "Newsletter Issue Published Successfully - emails going out shortly.",
+                );
                 return Ok(saved_response);
             }
         };
@@ -92,21 +95,40 @@ pub async fn publish_newsletter(
         );
         return Ok(Redirect::to("/admin/publish_newsletter").into_response());
     };
-    let _newsletter_issue_id =
+    let newsletter_issue_id =
         insert_newsletter_issue(&mut transaction, &title, &txt_content, &html_content)
             .await
             .map_err(|e| PublishError::Unexpected(e.into()))?;
+    enqueue_issue_delivery(&mut transaction, newsletter_issue_id)
+        .await
+        .map_err(|e| PublishError::Unexpected(e.into()))?;
     let response = Redirect::to("/admin/publish_newsletter").into_response();
     let response = save_response(transaction, &idempotency_key, user_id, response).await?;
-    flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
+    flash_writer.push(
+        Severity::Info,
+        "Newsletter Issue Published Successfully - emails going out shortly.",
+    );
     Ok(response)
 }
 
-fn get_html(text: &str) -> String {
-    let parser = pulldown_cmark::Parser::new(text);
-    let mut html_output = String::new();
-    pulldown_cmark::html::push_html(&mut html_output, parser);
-    ammonia::clean(&html_output)
+async fn enqueue_issue_delivery(
+    transaction: &mut Transaction<'static, Postgres>,
+    newsletter_issue_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    let query = sqlx::query!(
+        r#"
+            INSERT INTO issue_delivery_queue (
+                newsletter_issue_id,
+                email
+            )
+            SELECT $1, email
+                FROM subscriptions
+            WHERE status = 'confirmed';
+        "#,
+        newsletter_issue_id,
+    );
+    transaction.execute(query).await?;
+    Ok(())
 }
 
 async fn insert_newsletter_issue(
@@ -134,4 +156,11 @@ async fn insert_newsletter_issue(
     );
     transaction.execute(query).await?;
     Ok(newsletter_issue_id)
+}
+
+fn get_html(text: &str) -> String {
+    let parser = pulldown_cmark::Parser::new(text);
+    let mut html_output = String::new();
+    pulldown_cmark::html::push_html(&mut html_output, parser);
+    ammonia::clean(&html_output)
 }
