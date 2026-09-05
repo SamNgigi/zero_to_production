@@ -1,12 +1,73 @@
+use fake::{
+    Fake,
+    faker::internet::en::{SafeEmail, Username},
+};
 use secrecy::ExposeSecret;
 use std::time::Duration;
 use uuid::Uuid;
-
-use crate::common::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
 use wiremock::{
     Mock, ResponseTemplate,
     matchers::{any, method, path},
 };
+
+use crate::common::{ConfirmationLinks, TestApp, assert_on_redirect, spawn_app};
+
+#[tokio::test]
+async fn transient_errors_do_not_cause_duplicate_deliveries_on_retry() {
+    // NOTE: Arrange
+    let app = spawn_app().await;
+    app.test_user.login(&app).await;
+    let publish_newsletter_request = serde_json::json!({
+        "title": "Newsletter title",
+        "txt_content": "Newsletter content.",
+        "idempotency_key": Uuid::now_v7().to_string(),
+    });
+
+    // NOTE: We create 2 confirmed subscribers
+    // We updated implementation to use fake to generate
+    // 2 distinct subscribers
+    create_confirmed_subscriber(&app).await;
+    create_confirmed_subscriber(&app).await;
+
+    // NOTE: Act & Assert 1 - First email send for first confirmed sub.
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // NOTE: Act & Assert 2 - Second email send for second confirmed sub.
+    // We intentonally cause a transient error with a 500 response
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let response = app
+        .post_publish_newsletter(&publish_newsletter_request)
+        .await;
+    assert_eq!(response.status().as_u16(), 500);
+
+    // NOTE: Act & Assert 3 - A retry that shouldn't send the intial successful delivery
+    // just the second one that failed.
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .named("Delivery Retry")
+        .mount(&app.email_server)
+        .await;
+
+    let response = app
+        .post_publish_newsletter(&publish_newsletter_request)
+        .await;
+    assert_eq!(response.status().as_u16(), 303);
+}
 
 #[tokio::test]
 async fn concurrent_form_submission_is_handled_gracefully() {
@@ -271,7 +332,14 @@ async fn create_confirmed_subscriber(app: &TestApp) {
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
-    let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
+    let username: String = Username().fake();
+    let email: String = SafeEmail().fake();
+    let body = serde_urlencoded::to_string(serde_json::json!({
+        "username": username,
+        "email": email
+    }))
+    .unwrap();
+    // let body = "username=lei%20yin&email=lei_yin_loo%40gmail.com";
 
     let _mock_guard = Mock::given(path("/email"))
         .and(method("POST"))
@@ -281,7 +349,7 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         .mount_as_scoped(&app.email_server)
         .await;
 
-    app.post_subscriptions(body.into())
+    app.post_subscriptions(body)
         .await
         .error_for_status()
         .expect("Failed to create unconfirmed subscriber in test");
