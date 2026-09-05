@@ -119,7 +119,7 @@ async fn enqueue_issue_delivery(
         r#"
             INSERT INTO issue_delivery_queue (
                 newsletter_issue_id,
-                email
+                subscriber_email
             )
             SELECT $1, email
                 FROM subscriptions
