@@ -8,9 +8,10 @@ use axum::{
 use sqlx::PgPool;
 
 use crate::{
+    authentication::UserID,
     domain::SubscriberEmail,
     flash::{FlashWriter, Severity},
-    idempotency::IdempotencyKey,
+    idempotency::{IdempotencyKey, get_saved_response, save_response},
     routes::errors::{APIErrorBody, ErrorReport},
     startup::AppState,
 };
@@ -57,29 +58,36 @@ pub struct FormData {
 pub async fn publish_newsletter(
     State(state): State<AppState>,
     flash_writer: FlashWriter,
+    user_id: UserID,
     Form(form): Form<FormData>,
-) -> Result<impl IntoResponse, PublishError> {
+) -> Result<Response, PublishError> {
     let subscribers = get_confirmed_subscribers(&state.db_pool).await?;
     let FormData {
         title,
         txt_content,
         idempotency_key,
     } = form;
-    let _idempotency_key: IdempotencyKey = idempotency_key.try_into()?;
+    let idempotency_key: IdempotencyKey = idempotency_key.try_into()?;
+    if let Some(saved_response) =
+        get_saved_response(&state.db_pool, &idempotency_key, user_id.into_inner()).await?
+    {
+        flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
+        return Ok(saved_response);
+    };
     let html_content = get_html(&txt_content);
     if title.trim().is_empty() {
         flash_writer.push(
             Severity::Error,
             "Missing title for newsletter issue. Issue must have a title.",
         );
-        return Ok(Redirect::to("/admin/publish_newsletter"));
+        return Ok(Redirect::to("/admin/publish_newsletter").into_response());
     };
     if txt_content.trim().is_empty() {
         flash_writer.push(
             Severity::Error,
             "Missing content for newsletter issue. Issue must have content.",
         );
-        return Ok(Redirect::to("/admin/publish_newsletter"));
+        return Ok(Redirect::to("/admin/publish_newsletter").into_response());
     };
     for sub in subscribers {
         match sub {
@@ -101,8 +109,16 @@ pub async fn publish_newsletter(
         }
     }
 
+    let response = Redirect::to("/admin/publish_newsletter").into_response();
+    let response = save_response(
+        &state.db_pool,
+        &idempotency_key,
+        user_id.into_inner(),
+        response,
+    )
+    .await?;
     flash_writer.push(Severity::Info, "Newsletter Issue Published Successfully.");
-    Ok(Redirect::to("/admin/publish_newsletter"))
+    Ok(response)
 }
 
 fn get_html(text: &str) -> String {
