@@ -5,7 +5,7 @@ CREATE TYPE header_pair AS (
 );
 
 CREATE TABLE idempotency (
-  idempotency_key UUID NOT NULL,
+  idempotency_key TEXT NOT NULL,
   user_id UUID NOT NULL REFERENCES users(user_id),
   response_status_code SMALLINT,
   response_headers header_pair[],
